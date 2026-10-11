@@ -10,7 +10,8 @@
     "start": "node dist/server.js",
     "test": "jest",
     "ingest": "tsx src/ingestion/indexer.ts",
-    "inspect:pdf": "tsx ../scripts/inspect-pdf.ts"
+    "inspect:pdf": "tsx ../scripts/inspect-pdf.ts",
+    "test:gemini": "tsx ../scripts/test-gemini-connection.ts"
   },
   "dependencies": {
     "@google/genai": "^2.28.0",
