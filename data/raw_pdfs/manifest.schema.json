@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SchemeSathiRawPdfManifest",
+  "type": "object",
+  "required": ["schemes"],
+  "properties": {
+    "schemes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "schemeName", "category", "level", "language", "sourceUrl"],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "The exact PDF file name residing in data/raw_pdfs/"
+          },
+          "schemeName": {
+            "type": "string",
+            "description": "Official title of the welfare scheme"
+          },
+          "category": {
+            "type": "string",
+            "description": "Category (e.g., Education, Agriculture, Healthcare, Pension, Housing)"
+          },
+          "level": {
+            "type": "string",
+            "enum": ["central", "state"],
+            "description": "Jurisdiction level: central or state"
+          },
+          "language": {
+            "type": "string",
+            "description": "Primary language of document (e.g., en, hi)"
+          },
+          "sourceUrl": {
+            "type": "string",
+            "description": "Official government portal URL where PDF was downloaded"
+          }
+        }
+      }
+    }
+  }
+}
