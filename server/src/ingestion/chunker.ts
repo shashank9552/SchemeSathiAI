@@ -161,30 +161,44 @@ export class DocumentChunker {
   public isSchemeHeading(line: string, nextLine?: string): boolean {
     const l = line.trim();
 
+    // Ignore lines with trailing punctuation: comma, semicolon, colon, period
+    if (/[,;:.]\s*$/.test(l)) return false;
+
     // Ignore bullet points and typical list items
     if (/^[•\-\*■□▪▫►–—]/.test(l)) return false;
     if (/^\([a-z0-9]+\)/i.test(l)) return false;
 
-    // Sub-headings like Objective:, Eligibility:, etc. are not the scheme name itself
-    if (/^(objective|eligibility|scheme applicable for|detailed information|benefits|financial assistance|how to apply|who can apply|criteria):?$/i.test(l)) {
+    // Sub-headings like Objective:, Eligibility:, Scheme components:, etc. are not the scheme name itself
+    if (/^(objective|eligibility|scheme applicable for|detailed information|benefits|financial assistance|how to apply|who can apply|criteria|scheme components|eligible organisations|brief of the scheme):?$/i.test(l)) {
       return false;
     }
+
+    // Must start with an uppercase letter or digit
+    if (!/^[A-Z0-9]/.test(l)) return false;
 
     // Numbered scheme headings, e.g. "1. Prime Minister...", "SCHEME 2:", "2. Credit Guarantee..."
     if (/^(\d+\.|\d+\)|\b(scheme|programme|mission|yojana)\s+\d+:?)/i.test(l)) {
       return l.length <= 140;
     }
 
-    // Check for scheme keywords with title length (< 120 chars) and without trailing sentence period
-    const schemeKeywords = /(scheme|programme|program|yojana|mission|abhiyan|scholarship|assistance|fund|initiative|subsid|portal|pmegp|cgtmse|pmay|mudra)/i;
-    if (schemeKeywords.test(l) && l.length <= 120 && !l.endsWith('.')) {
+    // Check if next line is literally "Scheme", "Programme", or ends with acronym like "(PMEGP)"
+    if (nextLine && /^(scheme|programme|program|yojana|mission|\([A-Z0-9\-]{2,10}\))\s*$/i.test(nextLine.trim())) {
+      return true;
+    }
+
+    // Check for scheme keywords with title length (< 100 chars), ending with scheme/programme/acronym
+    if (
+      /(scheme|programme|program|yojana|mission|scholarship|\([A-Z0-9\-]{2,10}\))\s*$/i.test(l) &&
+      l.length <= 100 &&
+      !/(aims to|provides|covered under|wherein|eligible|guidelines|procedure|policy)/i.test(l)
+    ) {
       return true;
     }
 
     // Heading that continues onto next line (e.g. "Prime Minister's Employment" followed by "Generation Programme (PMEGP)")
     if (
       nextLine &&
-      /^(prime minister|national|central|state|pradhan mantri|chief minister|atal)/i.test(l) &&
+      /^(prime minister|national|central|state|pradhan mantri|chief minister|atal|international|credit|technology|micro)/i.test(l) &&
       this.isHeadingContinuation(nextLine.trim())
     ) {
       return true;
@@ -196,7 +210,8 @@ export class DocumentChunker {
   private isHeadingContinuation(line: string): boolean {
     const l = line.trim();
     if (/^[•\-\*■]/.test(l)) return false;
-    return /(programme|program|scheme|yojana|mission|initiative|\([a-z0-9\-]+\))/i.test(l) && l.length <= 80;
+    if (/[,;:.]\s*$/.test(l)) return false;
+    return /(programme|program|scheme|yojana|mission|initiative|\([A-Z0-9\-]+\))\s*$/i.test(l) && l.length <= 80;
   }
 
   /**

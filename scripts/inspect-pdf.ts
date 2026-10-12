@@ -53,8 +53,9 @@ export function analyzeGarble(text: string, maxGarbleRate = 5.0): GarbleAnalysis
   // 5. Signature: Dangling halant (followed by space or non-consonant)
   const danglingHalant = (text.match(/[\u094D](?:\s+|$|[^\u0915-\u0939])/g) || []).length;
 
-  // 6. Signature: Legacy font artifacts
-  const legacyFontArtifacts = (text.match(/[«»¿¡¶§]/g) || []).length;
+  // 6. Signature: Legacy font artifacts (KrutiDev/Chanakya specific characters like ¿, ¡)
+  // Note: Standard legal section marks (§) and paragraph marks (¶) are excluded to avoid false positives in legal texts.
+  const legacyFontArtifacts = (text.match(/[¿¡]/g) || []).length;
 
   const signatures = {
     sequenceMpa,

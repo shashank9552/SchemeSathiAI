@@ -1,4 +1,13 @@
 {
   "$schema": "./manifest.schema.json",
-  "schemes": []
+  "schemes": [
+    {
+      "file": "MSMESchemebooklet2025-26.pdf",
+      "schemeName": "Ministry of MSME Scheme Booklet 2025-26",
+      "category": "Business, MSME & Entrepreneurship",
+      "level": "central",
+      "language": "en",
+      "sourceUrl": "https://www.msme.gov.in"
+    }
+  ]
 }

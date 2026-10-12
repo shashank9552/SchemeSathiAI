@@ -34,6 +34,10 @@ export class TextCleaner {
 
       for (const line of [...topLines, ...bottomLines]) {
         const normalized = this.normalizeLineForComparison(line);
+        // Never treat structural content labels (Objective, Eligibility, etc.) as repeating headers/footers
+        if (/^(objective|eligibility|benefits|detailed information|scheme applicable for|who can apply|how to apply|financial assistance|scheme components):?$/i.test(normalized)) {
+          continue;
+        }
         if (normalized.length > 5) {
           candidateLines.add(normalized);
         }

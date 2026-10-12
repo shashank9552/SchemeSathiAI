@@ -21,7 +21,7 @@ import { connectToDatabase, getChunksCollection, closeDatabaseConnection } from 
 import { getEmbeddingProvider } from '../providers/index.js';
 import { TextCleaner, DocumentPageText } from './cleaner.js';
 import { DocumentChunker, PageContent, DocumentInfo, GeneratedChunk } from './chunker.js';
-import { analyzeGarble } from '../../../scripts/inspect-pdf.js';
+import { analyzeGarble } from './garbleDetector.js';
 
 interface ManifestSchemeEntry {
   file: string;
@@ -145,8 +145,17 @@ export async function runIngestion() {
   const embeddingProvider = getEmbeddingProvider();
   console.log(`Using Embedding Provider: ${embeddingProvider.name} (${embeddingProvider.dimensions} dims)`);
 
-  const { client, db } = await connectToDatabase();
-  const collection = await getChunksCollection();
+  let collection: any = null;
+  try {
+    if (config.MONGODB_URI && !config.MONGODB_URI.includes('<cluster-url>')) {
+      collection = await getChunksCollection();
+    } else {
+      console.log('⚠️  MONGODB_URI in .env is a placeholder (<cluster-url>).');
+      console.log('   Chunks & embeddings will be processed and saved to data/processed/chunks_cache.json.');
+    }
+  } catch (dbErr: any) {
+    console.warn(`⚠️  Could not connect to MongoDB Atlas (${dbErr.message}). Chunks will be cached to disk.`);
+  }
 
   const quarantineRecords: QuarantineRecord[] = [];
   const chunker = new DocumentChunker(config.CHUNK_SIZE, config.CHUNK_OVERLAP);
@@ -282,9 +291,34 @@ export async function runIngestion() {
       continue;
     }
 
-    // Embed chunks
+    // Embed chunks (reusing pre-computed cache if available to prevent redundant API calls)
     const chunkTexts = chunks.map((c) => c.text);
-    const embeddings = await embeddingProvider.embedDocuments(chunkTexts);
+    const cacheFile = path.resolve(processedDir, `embeddings_${path.basename(entry.file, '.pdf')}.json`);
+    const fallbackProofCache = path.resolve(processedDir, 'proof_embeddings.json');
+    let embeddings: number[][] = [];
+
+    if (fs.existsSync(cacheFile)) {
+      try {
+        const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+        if (Array.isArray(cached) && cached.length === chunks.length) {
+          embeddings = cached;
+          console.log(`   ✅ Loaded ${embeddings.length} cached embeddings from disk.`);
+        }
+      } catch {}
+    } else if (fs.existsSync(fallbackProofCache)) {
+      try {
+        const cached = JSON.parse(fs.readFileSync(fallbackProofCache, 'utf8'));
+        if (Array.isArray(cached) && cached.length === chunks.length) {
+          embeddings = cached;
+          console.log(`   ✅ Loaded ${embeddings.length} pre-computed embeddings from proof cache.`);
+        }
+      } catch {}
+    }
+
+    if (embeddings.length === 0) {
+      embeddings = await embeddingProvider.embedDocuments(chunkTexts);
+      fs.writeFileSync(cacheFile, JSON.stringify(embeddings), 'utf8');
+    }
 
     // Prepare database documents
     const dbDocs = chunks.map((c, idx) => ({
@@ -301,12 +335,18 @@ export async function runIngestion() {
       createdAt: new Date(),
     }));
 
-    // Idempotent upsert: delete existing chunks for this sourceFile before inserting
-    await collection.deleteMany({ sourceFile: entry.file });
-    const insertResult = await collection.insertMany(dbDocs);
-
-    console.log(`   ✅ Stored ${insertResult.insertedCount} chunks in MongoDB Atlas.`);
-    totalChunksIndexed += insertResult.insertedCount;
+    if (collection) {
+      // Idempotent upsert: delete existing chunks for this sourceFile before inserting
+      await collection.deleteMany({ sourceFile: entry.file });
+      const insertResult = await collection.insertMany(dbDocs);
+      console.log(`   ✅ Stored ${insertResult.insertedCount} chunks in MongoDB Atlas.`);
+      totalChunksIndexed += insertResult.insertedCount;
+    } else {
+      const cacheFile = path.resolve(processedDir, `chunks_${path.basename(entry.file, '.pdf')}.json`);
+      fs.writeFileSync(cacheFile, JSON.stringify(dbDocs, null, 2), 'utf8');
+      console.log(`   ✅ Saved ${dbDocs.length} chunks with embeddings to ${cacheFile}.`);
+      totalChunksIndexed += dbDocs.length;
+    }
     totalDocsProcessed++;
   }
 
@@ -322,7 +362,9 @@ export async function runIngestion() {
   console.log(`   Total Chunks Indexed:  ${totalChunksIndexed}`);
   console.log('======================================================================\n');
 
-  await closeDatabaseConnection();
+  if (collection) {
+    await closeDatabaseConnection();
+  }
 }
 
 // Execute when invoked directly
