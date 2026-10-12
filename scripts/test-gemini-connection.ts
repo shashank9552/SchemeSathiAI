@@ -55,7 +55,7 @@ async function verifyGeminiConnection() {
     });
 
     const embedDuration = Date.now() - embedStartTime;
-    const values = embedResponse.embedding?.values || [];
+    const values = embedResponse.embeddings?.[0]?.values || embedResponse.embedding?.values || [];
 
     if (values.length === 0) {
       throw new Error('Received empty embedding values array from Gemini API.');
@@ -74,22 +74,31 @@ async function verifyGeminiConnection() {
   // 2. Test LLM Generation Model
   console.log(`\n⏳ Testing LLM Model (${llmModel})...`);
   const llmStartTime = Date.now();
-  try {
-    const genResponse = await ai.models.generateContent({
-      model: llmModel,
-      contents: 'Respond with the exact phrase: "SchemeSathi Gemini API connection verified."',
-    });
-
-    const llmDuration = Date.now() - llmStartTime;
-    const responseText = genResponse.text?.trim() || '';
-
-    console.log(`✅ LLM Generation Model OK (${llmDuration} ms)`);
-    console.log(`   - Response: "${responseText}"`);
-  } catch (llmErr: any) {
-    console.error(`❌ LLM Model Failed:`);
-    console.error(`   Message: ${llmErr.message || llmErr}`);
-    process.exit(1);
+  let responseText = '';
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      const genResponse = await ai.models.generateContent({
+        model: llmModel,
+        contents: 'Respond with the exact phrase: "SchemeSathi Gemini API connection verified."',
+      });
+      responseText = genResponse.text?.trim() || '';
+      break;
+    } catch (llmErr: any) {
+      retries--;
+      if (retries === 0) {
+        console.error(`❌ LLM Model Failed:`);
+        console.error(`   Message: ${llmErr.message || llmErr}`);
+        process.exit(1);
+      }
+      console.log(`   (Transient error, retrying in 2s... remaining attempts: ${retries})`);
+      await new Promise((r) => setTimeout(r, 2000));
+    }
   }
+
+  const llmDuration = Date.now() - llmStartTime;
+  console.log(`✅ LLM Generation Model OK (${llmDuration} ms)`);
+  console.log(`   - Response: "${responseText}"`);
 
   console.log('\n======================================================');
   console.log('🎉 All Gemini API connectivity checks PASSED successfully!');
