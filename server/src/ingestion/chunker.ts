@@ -177,9 +177,11 @@ export class DocumentChunker {
 
       // 1. Check if line is Table marker (e.g. CGTMSE table or markdown table)
       if (line.includes('|---|') || line.includes('extent of guarantee coverage under various categories')) {
-        commitSection();
-        isCurrentTable = true;
-        activeSection = 'Extent of Guarantee Coverage';
+        if (!isCurrentTable) {
+          commitSection();
+          isCurrentTable = true;
+          activeSection = 'Extent of Guarantee Coverage';
+        }
         currentLines.push(line);
         continue;
       }

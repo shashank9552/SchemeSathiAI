@@ -16,6 +16,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { config } from '../config/index.js';
 import { connectToDatabase, getChunksCollection, closeDatabaseConnection } from '../db/index.js';
 import { getEmbeddingProvider } from '../providers/index.js';
@@ -306,7 +307,29 @@ export async function runIngestion() {
     } else {
       chunks = chunker.chunkDocument(cleanedPages, docInfo);
     }
-    console.log(`   Generated/Prepared ${chunks.length} chunks. Computing embeddings...`);
+
+    // Deduplication Quality Gate: content-hash deduplication (SHA-256)
+    const rawChunkCount = chunks.length;
+    const seenContentHashes = new Set<string>();
+    const deduplicatedChunks: GeneratedChunk[] = [];
+    const keptIndices: number[] = [];
+
+    chunks.forEach((chunk, idx) => {
+      const hash = crypto.createHash('sha256').update(chunk.text.trim().replace(/\s+/g, ' ')).digest('hex');
+      if (!seenContentHashes.has(hash)) {
+        seenContentHashes.add(hash);
+        chunk.metadata.chunkIndex = deduplicatedChunks.length;
+        deduplicatedChunks.push(chunk);
+        keptIndices.push(idx);
+      } else {
+        console.log(`   ℹ️  Deduplicated duplicate chunk on page ${chunk.metadata.pageNumber} (${chunk.metadata.schemeName} - ${chunk.metadata.sectionTitle})`);
+      }
+    });
+
+    console.log(`   Chunk count before deduplication: ${rawChunkCount}`);
+    console.log(`   Distinct chunk count after deduplication: ${deduplicatedChunks.length}`);
+    chunks = deduplicatedChunks;
+    console.log(`   Prepared ${chunks.length} distinct chunks. Computing/loading embeddings...`);
 
     if (chunks.length === 0) {
       continue;
@@ -321,17 +344,29 @@ export async function runIngestion() {
     if (fs.existsSync(cacheFile)) {
       try {
         const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
-        if (Array.isArray(cached) && cached.length === chunks.length) {
-          embeddings = cached;
-          console.log(`   ✅ Loaded ${embeddings.length} cached embeddings from disk.`);
+        if (Array.isArray(cached)) {
+          if (cached.length === chunks.length) {
+            embeddings = cached;
+            console.log(`   ✅ Loaded ${embeddings.length} cached embeddings from disk.`);
+          } else if (cached.length === rawChunkCount && keptIndices.length === chunks.length) {
+            embeddings = keptIndices.map((i) => cached[i]);
+            fs.writeFileSync(cacheFile, JSON.stringify(embeddings), 'utf8');
+            console.log(`   ✅ Filtered cached embeddings from ${rawChunkCount} to ${embeddings.length} matching deduplicated chunks.`);
+          }
         }
       } catch {}
     } else if (fs.existsSync(fallbackProofCache)) {
       try {
         const cached = JSON.parse(fs.readFileSync(fallbackProofCache, 'utf8'));
-        if (Array.isArray(cached) && cached.length === chunks.length) {
-          embeddings = cached;
-          console.log(`   ✅ Loaded ${embeddings.length} pre-computed embeddings from proof cache.`);
+        if (Array.isArray(cached)) {
+          if (cached.length === chunks.length) {
+            embeddings = cached;
+            console.log(`   ✅ Loaded ${embeddings.length} pre-computed embeddings from proof cache.`);
+          } else if (cached.length === rawChunkCount && keptIndices.length === chunks.length) {
+            embeddings = keptIndices.map((i) => cached[i]);
+            fs.writeFileSync(fallbackProofCache, JSON.stringify(embeddings), 'utf8');
+            console.log(`   ✅ Filtered proof cache from ${rawChunkCount} to ${embeddings.length} matching deduplicated chunks.`);
+          }
         }
       } catch {}
     }

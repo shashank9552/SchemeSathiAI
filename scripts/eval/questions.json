@@ -1,0 +1,178 @@
+[
+  {
+    "id": "ANS-01",
+    "category": "answerable",
+    "language": "en",
+    "hasSchemeName": false,
+    "question": "I am 22 years old and want to start my first self-employment venture. Am I eligible to apply for government loan subsidy?",
+    "expectedScheme": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "expectedPage": 5,
+    "expectedPhrase": "Any individual, above 18 years of age"
+  },
+  {
+    "id": "ANS-02",
+    "category": "answerable",
+    "language": "en",
+    "hasSchemeName": false,
+    "question": "Do I need to submit a physical paper form to the district office or can I apply online for a micro-enterprise loan?",
+    "expectedScheme": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "expectedPage": 6,
+    "expectedPhrase": "Online application form is mandatory for individuals on the e-portal"
+  },
+  {
+    "id": "ANS-03",
+    "category": "answerable",
+    "language": "en",
+    "hasSchemeName": false,
+    "question": "What is the maximum project cost for upgrading an existing manufacturing business with a second loan?",
+    "expectedScheme": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "expectedPage": 7,
+    "expectedPhrase": "maximum cost of the project under manufacturing sector for up-gradation is Rs.1.00 crore"
+  },
+  {
+    "id": "ANS-04",
+    "category": "answerable",
+    "language": "en",
+    "hasSchemeName": false,
+    "question": "Can an existing borrower who has repaid their first MUDRA or PMEGP loan on time apply for second financial assistance?",
+    "expectedScheme": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "expectedPage": 8,
+    "expectedPhrase": "repaid in stipulated time"
+  },
+  {
+    "id": "ANS-05",
+    "category": "answerable",
+    "language": "en",
+    "hasSchemeName": false,
+    "question": "What percentage of credit guarantee coverage is provided to women entrepreneurs borrowing up to 50 lakh rupees without collateral?",
+    "expectedScheme": "Credit Guarantee Scheme for Micro & Small Enterprises (CGTMSE)",
+    "expectedPage": 10,
+    "expectedPhrase": "Women entrepreneurs"
+  },
+  {
+    "id": "ANS-06",
+    "category": "answerable",
+    "language": "en",
+    "hasSchemeName": false,
+    "question": "How are traditional village artisans organized by implementing agencies to receive financial assistance for common production facilities?",
+    "expectedScheme": "Scheme of Fund for Regeneration of Traditional Industries (SFURTI)",
+    "expectedPage": 14,
+    "expectedPhrase": "Artisans are constituted into Special Purpose Vehicles"
+  },
+  {
+    "id": "ANS-07",
+    "category": "answerable",
+    "language": "en",
+    "hasSchemeName": false,
+    "question": "Where can an aspiring entrepreneur attend a one-day awareness and motivation training camp to explore self-employment career options?",
+    "expectedScheme": "Entrepreneurship Skill Development Programme (ESDP)",
+    "expectedPage": 15,
+    "expectedPhrase": "Entrepreneurship Awareness Programme (EAP)-One Day training programme"
+  },
+  {
+    "id": "ANS-08",
+    "category": "answerable",
+    "language": "en",
+    "hasSchemeName": false,
+    "question": "Which traditional trades such as carpenters, blacksmiths, and potters are covered for artisan tool support at Common Service Centres?",
+    "expectedScheme": "Tool Rooms and Technical Institutions",
+    "expectedPage": 37,
+    "expectedPhrase": "Carpenter (Suthar/Badhai)"
+  },
+  {
+    "id": "ANS-09",
+    "category": "answerable",
+    "language": "en",
+    "hasSchemeName": true,
+    "question": "Under MSME Champions Scheme, what financial contribution does the government provide for student innovative ideas and projects?",
+    "expectedScheme": "MSME Champions Scheme",
+    "expectedPage": 45,
+    "expectedPhrase": "Student Project: 75% of the total project cost will be contributed by GoI"
+  },
+  {
+    "id": "ANS-10",
+    "category": "answerable",
+    "language": "hi",
+    "hasSchemeName": false,
+    "question": "18 वर्ष से अधिक आयु का कोई भी व्यक्ति स्वरोजगार शुरू करने के लिए सरकारी सब्सिडी ऋण के लिए कैसे पात्र हो सकता है?",
+    "expectedScheme": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "expectedPage": 5,
+    "expectedPhrase": "Any individual, above 18 years of age"
+  },
+  {
+    "id": "ANS-11",
+    "category": "answerable",
+    "language": "hi",
+    "hasSchemeName": false,
+    "question": "महिला उद्यमियों को बिना किसी बैंक गारंटी के कितने प्रतिशत तक ऋण गारंटी सुरक्षा दी जाती है?",
+    "expectedScheme": "Credit Guarantee Scheme for Micro & Small Enterprises (CGTMSE)",
+    "expectedPage": 10,
+    "expectedPhrase": "Women entrepreneurs"
+  },
+  {
+    "id": "ANS-12",
+    "category": "answerable",
+    "language": "hi",
+    "hasSchemeName": true,
+    "question": "PMEGP योजना के तहत मैन्युफैक्चरिंग यूनिट के विस्तार के लिए दूसरे ऋण की अधिकतम सीमा क्या है?",
+    "expectedScheme": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "expectedPage": 7,
+    "expectedPhrase": "Rs.1.00 crore"
+  },
+  {
+    "id": "UNANS-01",
+    "category": "unanswerable",
+    "language": "en",
+    "subCategory": "near-topic-msme",
+    "question": "How to apply for PM Vishwakarma toolkit incentive of Rs 15,000 for carpenters?"
+  },
+  {
+    "id": "UNANS-02",
+    "category": "unanswerable",
+    "language": "en",
+    "subCategory": "near-topic-msme",
+    "question": "What is the procedure for MSME GST exemption for small businesses with annual turnover under 40 lakh rupees?"
+  },
+  {
+    "id": "UNANS-03",
+    "category": "unanswerable",
+    "language": "en",
+    "subCategory": "near-topic-msme",
+    "question": "What are the interest rates and repayment tenure for Pradhan Mantri MUDRA Shishu loans up to 50,000 rupees?"
+  },
+  {
+    "id": "UNANS-04",
+    "category": "unanswerable",
+    "language": "en",
+    "subCategory": "out-of-corpus-general",
+    "question": "Which scholarship can a class 12 student from a low-income family apply for?"
+  },
+  {
+    "id": "UNANS-05",
+    "category": "unanswerable",
+    "language": "en",
+    "subCategory": "out-of-corpus-general",
+    "question": "How to register and apply for PM Kisan Samman Nidhi to get 6000 rupees direct benefit?"
+  },
+  {
+    "id": "UNANS-06",
+    "category": "unanswerable",
+    "language": "en",
+    "subCategory": "out-of-corpus-general",
+    "question": "What is the subsidy percentage for buying agricultural drones in Punjab for wheat farming?"
+  },
+  {
+    "id": "UNANS-07",
+    "category": "unanswerable",
+    "language": "hi",
+    "subCategory": "out-of-corpus-general",
+    "question": "किसान क्रेडिट कार्ड (KCC) कैसे बनवाएं और इसके लिए कौन से दस्तावेज चाहिए?"
+  },
+  {
+    "id": "UNANS-08",
+    "category": "unanswerable",
+    "language": "hi",
+    "subCategory": "out-of-corpus-general",
+    "question": "गर्भवती महिलाओं के लिए मातृ वंदना योजना में 5000 रुपये की सहायता कैसे प्राप्त करें?"
+  }
+]
