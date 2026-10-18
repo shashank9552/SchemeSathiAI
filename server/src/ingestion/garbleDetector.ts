@@ -29,7 +29,11 @@ const COMMON_ENGLISH_STOPWORDS = new Set([
   'the', 'of', 'and', 'to', 'in', 'a', 'is', 'that', 'for', 'it',
   'as', 'with', 'on', 'by', 'at', 'from', 'this', 'be', 'are', 'or',
   'an', 'will', 'which', 'has', 'have', 'not', 'their', 'under', 'all',
-  'can', 'any', 'such', 'per', 'up', 'scheme', 'government', 'state', 'national'
+  'can', 'any', 'such', 'per', 'up', 'scheme', 'government', 'state', 'national',
+  // Administrative, directory and institutional vocabulary in government booklets
+  'road', 'estate', 'industrial', 'building', 'floor', 'campus', 'near', 'nagar',
+  'area', 'office', 'branch', 'centre', 'center', 'email', 'phone', 'fax', 'plot',
+  'district', 'india', 'ministry', 'msme', 'development', 'information', 'contact'
 ]);
 
 /**
@@ -85,7 +89,7 @@ export function analyzeGarble(text: string, maxGarbleRate = 5.0): GarbleAnalysis
     quarantineReason = 'under_100_characters';
   } else if (garbleRatePer1000 > maxGarbleRate) {
     quarantineReason = 'garble_rate_exceeded';
-  } else if (devanagariRatio < 0.1 && words.length >= 25 && englishStopwordRatio < 0.08) {
+  } else if (devanagariRatio < 0.1 && words.length >= 25 && englishStopwordRatio < 0.05) {
     // Page is predominantly Latin letters but has almost zero English stopwords:
     // It is a KrutiDev / legacy font stream representing Hindi text with English keyboard codes!
     quarantineReason = 'failed_englishness_check';

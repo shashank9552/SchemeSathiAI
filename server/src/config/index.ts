@@ -29,8 +29,8 @@ const envSchema = z.object({
 
   // Gemini API
   GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY is required'),
-  GEMINI_LLM_MODEL: z.string().default('gemini-3.8-flash'),
-  GEMINI_EMBEDDING_MODEL: z.string().default('gemini-embedding-2'),
+  GEMINI_LLM_MODEL: z.string().min(1, 'GEMINI_LLM_MODEL is required in environment'),
+  GEMINI_EMBEDDING_MODEL: z.string().min(1, 'GEMINI_EMBEDDING_MODEL is required in environment'),
   EMBEDDING_DIMENSIONS: z.coerce.number().default(768),
 
   // Chunking

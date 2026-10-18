@@ -120,11 +120,21 @@
     "expectedPhrase": "Rs.1.00 crore"
   },
   {
+    "id": "ANS-13",
+    "category": "answerable",
+    "language": "en",
+    "hasSchemeName": true,
+    "question": "How to apply for PM Vishwakarma toolkit incentive of Rs 15,000 for carpenters?",
+    "expectedScheme": "Tool Rooms and Technical Institutions",
+    "expectedPage": 37,
+    "expectedPhrase": "Toolkit Incentive: A toolkit incentive of up to Rs. 15,000"
+  },
+  {
     "id": "UNANS-01",
     "category": "unanswerable",
     "language": "en",
     "subCategory": "near-topic-msme",
-    "question": "How to apply for PM Vishwakarma toolkit incentive of Rs 15,000 for carpenters?"
+    "question": "What are the eligibility criteria and maximum loan guarantee under the Emergency Credit Line Guarantee Scheme (ECLGS) for MSMEs?"
   },
   {
     "id": "UNANS-02",

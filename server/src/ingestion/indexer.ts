@@ -23,6 +23,7 @@ import { getEmbeddingProvider } from '../providers/index.js';
 import { TextCleaner, DocumentPageText } from './cleaner.js';
 import { DocumentChunker, PageContent, DocumentInfo, GeneratedChunk } from './chunker.js';
 import { analyzeGarble } from './garbleDetector.js';
+import { EmbeddingCache } from '../providers/embeddingCache.js';
 
 interface ManifestSchemeEntry {
   file: string;
@@ -335,45 +336,36 @@ export async function runIngestion() {
       continue;
     }
 
-    // Embed chunks (reusing pre-computed cache if available to prevent redundant API calls)
-    const chunkTexts = chunks.map((c) => c.text);
-    const cacheFile = path.resolve(processedDir, `embeddings_${path.basename(entry.file, '.pdf')}.json`);
-    const fallbackProofCache = path.resolve(processedDir, 'proof_embeddings.json');
+    // Embed chunks using deterministic hash cache: key = sha256(text + model + dimensions)
+    const embeddingCache = new EmbeddingCache();
+    const model = config.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
+    const dims = config.EMBEDDING_DIMENSIONS || 768;
+
     let embeddings: number[][] = [];
+    const missingIndices: number[] = [];
+    const missingTexts: string[] = [];
 
-    if (fs.existsSync(cacheFile)) {
-      try {
-        const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
-        if (Array.isArray(cached)) {
-          if (cached.length === chunks.length) {
-            embeddings = cached;
-            console.log(`   ✅ Loaded ${embeddings.length} cached embeddings from disk.`);
-          } else if (cached.length === rawChunkCount && keptIndices.length === chunks.length) {
-            embeddings = keptIndices.map((i) => cached[i]);
-            fs.writeFileSync(cacheFile, JSON.stringify(embeddings), 'utf8');
-            console.log(`   ✅ Filtered cached embeddings from ${rawChunkCount} to ${embeddings.length} matching deduplicated chunks.`);
-          }
-        }
-      } catch {}
-    } else if (fs.existsSync(fallbackProofCache)) {
-      try {
-        const cached = JSON.parse(fs.readFileSync(fallbackProofCache, 'utf8'));
-        if (Array.isArray(cached)) {
-          if (cached.length === chunks.length) {
-            embeddings = cached;
-            console.log(`   ✅ Loaded ${embeddings.length} pre-computed embeddings from proof cache.`);
-          } else if (cached.length === rawChunkCount && keptIndices.length === chunks.length) {
-            embeddings = keptIndices.map((i) => cached[i]);
-            fs.writeFileSync(fallbackProofCache, JSON.stringify(embeddings), 'utf8');
-            console.log(`   ✅ Filtered proof cache from ${rawChunkCount} to ${embeddings.length} matching deduplicated chunks.`);
-          }
-        }
-      } catch {}
-    }
+    chunks.forEach((chunk, idx) => {
+      const cached = embeddingCache.get(chunk.text, model, dims);
+      if (cached) {
+        embeddings[idx] = cached;
+      } else {
+        missingIndices.push(idx);
+        missingTexts.push(chunk.text);
+      }
+    });
 
-    if (embeddings.length === 0) {
-      embeddings = await embeddingProvider.embedDocuments(chunkTexts);
-      fs.writeFileSync(cacheFile, JSON.stringify(embeddings), 'utf8');
+    if (missingTexts.length > 0) {
+      console.log(`   Generating ${missingTexts.length} embeddings via API (${embeddings.filter(Boolean).length} loaded from hash cache)...`);
+      const generated = await embeddingProvider.embedDocuments(missingTexts);
+      generated.forEach((emb, i) => {
+        const origIdx = missingIndices[i];
+        embeddings[origIdx] = emb;
+        embeddingCache.set(missingTexts[i], model, dims, emb);
+      });
+      embeddingCache.save();
+    } else {
+      console.log(`   ✅ Loaded all ${embeddings.length} embeddings from deterministic hash cache (key = sha256(text + model + dimensions)).`);
     }
 
     // Prepare database documents

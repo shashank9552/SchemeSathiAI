@@ -95,7 +95,8 @@ Lenient Recall@5 (Scheme-level only) | 100.0%    | Top-5 chunks include expected
 | **0.90** | 7 / 12 | 5 / 12 | 8 / 8 | 0 / 8 | 75.0% |
 
 > [!IMPORTANT]
-> **Provisional `MIN_SIMILARITY=0.88` & Recalibration Guideline**:
-> - `MIN_SIMILARITY=0.88` is configured in `.env` as a provisional conservative threshold to aggressively prevent hallucinations on out-of-corpus queries.
-> - The top retrieved vector score is logged on every chat request in `POST /api/chat`.
+> **Provisional `MIN_SIMILARITY=0.86` & Two-Gate Architecture Evaluation**:
+> - `MIN_SIMILARITY=0.86` is configured in `.env` as the provisional value for end-to-end testing.
+> - **Rationale**: At `0.86`, 100% of answerable questions (12/12) pass the vector similarity gate without false rejections. Meanwhile, 4 near-topic unanswerable questions (`UNANS-01`, `UNANS-02`, `UNANS-03`, `UNANS-05`) intentionally leak through the first gate to the LLM. This provides a rigorous end-to-end evaluation of the **second gate** (LLM groundedness and refusal logic), verifying that the LLM correctly refuses unanswerable queries despite receiving partially related chunks.
+> - The top retrieved vector score, decision, used chunks count, and latency are logged on every chat request in `POST /api/chat`.
 > - **Mandatory Recalibration**: Whenever additional scheme PDFs are ingested into `data/raw_pdfs/`, `scripts/test-atlas-vector-search.ts` must be re-run and `MIN_SIMILARITY` recalibrated against the expanded corpus.
