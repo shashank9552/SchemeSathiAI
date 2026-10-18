@@ -11,8 +11,10 @@ import crypto from 'node:crypto';
 import { config } from '../config/index.js';
 import { getLLMProvider } from '../providers/index.js';
 import { VectorRetriever } from './retriever.js';
-import { PromptBuilder, REFUSAL_MESSAGES } from './promptBuilder.js';
+import { PromptBuilder, REFUSAL_MESSAGES, QUOTA_ERROR_MESSAGES } from './promptBuilder.js';
 import { ChatResponse, Citation, LlmAnswerPayload } from './types.js';
+import { questionCache } from './questionCache.js';
+import { FaithfulnessGuard } from './faithfulnessGuard.js';
 
 export class ChatService {
   private retriever: VectorRetriever;
@@ -35,8 +37,36 @@ export class ChatService {
     const langDetectMs = Date.now() - langDetectStart;
     const queryHash = crypto.createHash('sha256').update(message.trim()).digest('hex').slice(0, 8);
 
+    // Check Question Cache (1 hour TTL)
+    const cachedResponse = questionCache.get(lang, message);
+    if (cachedResponse) {
+      console.log(`[CHAT_CACHE_HIT] queryHash=${queryHash} lang=${lang}`);
+      return {
+        ...cachedResponse,
+        cached: true,
+        latencyMs: Date.now() - startTime,
+      };
+    }
+
     // 1. Vector Retrieval (with embedding and search timing)
-    const { chunks, embedMs, searchMs } = await this.retriever.retrieveWithTiming(message, config.TOP_K);
+    let chunks: any[] = [];
+    let embedMs = 0;
+    let searchMs = 0;
+    try {
+      const retResult = await this.retriever.retrieveWithTiming(message, config.TOP_K);
+      chunks = retResult.chunks;
+      embedMs = retResult.embedMs;
+      searchMs = retResult.searchMs;
+    } catch (retErr: any) {
+      const errMsg = retErr.message || String(retErr);
+      if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota')) {
+        const quotaErr: any = new Error(QUOTA_ERROR_MESSAGES[lang]);
+        quotaErr.status = 503;
+        throw quotaErr;
+      }
+      throw retErr;
+    }
+
     const topScore = chunks.length > 0 ? chunks[0].score : 0;
 
     // 2. Gate 1: Vector Similarity Threshold Gate
@@ -46,7 +76,7 @@ export class ChatService {
         `[CHAT_REQUEST] queryHash=${queryHash} lang=${lang} topScore=${topScore.toFixed(4)} threshold=${config.MIN_SIMILARITY} decision=refused_first_gate_vector usedChunks=0 timing={lang:${langDetectMs}ms,embed:${embedMs}ms,vectorSearch:${searchMs}ms} latencyMs=${latencyMs}ms`
       );
 
-      return {
+      const response: ChatResponse = {
         answer: REFUSAL_MESSAGES[lang],
         citations: [],
         latencyMs,
@@ -59,6 +89,9 @@ export class ChatService {
           totalMs: latencyMs,
         },
       };
+
+      questionCache.set(lang, message, response);
+      return response;
     }
 
     // 3. Gate 2: LLM Synthesis & Groundedness Gate
@@ -83,9 +116,17 @@ export class ChatService {
         llmMs = Date.now() - llmStart;
       }
     } catch (llmErr: any) {
+      const errMsg = llmErr.message || String(llmErr);
+      if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota')) {
+        console.warn(`[CHAT_QUOTA_EXCEEDED] queryHash=${queryHash} - returning 503`);
+        const quotaErr: any = new Error(QUOTA_ERROR_MESSAGES[lang]);
+        quotaErr.status = 503;
+        throw quotaErr;
+      }
+
       const latencyMs = Date.now() - startTime;
       console.error(
-        `[CHAT_REQUEST_ERROR] LLM generation failed for queryHash=${queryHash}: ${llmErr.message} timing={lang:${langDetectMs}ms,embed:${embedMs}ms,vectorSearch:${searchMs}ms,llm:${llmMs}ms} latencyMs=${latencyMs}ms`
+        `[CHAT_REQUEST_ERROR] LLM generation failed for queryHash=${queryHash}: ${errMsg} timing={lang:${langDetectMs}ms,embed:${embedMs}ms,vectorSearch:${searchMs}ms,llm:${llmMs}ms} latencyMs=${latencyMs}ms`
       );
       return {
         answer: REFUSAL_MESSAGES[lang],
@@ -115,7 +156,7 @@ export class ChatService {
         `[CHAT_REQUEST] queryHash=${queryHash} lang=${lang} topScore=${topScore.toFixed(4)} decision=refused_second_gate_llm usedChunks=0 timing={lang:${langDetectMs}ms,embed:${embedMs}ms,vectorSearch:${searchMs}ms,llm:${llmMs}ms,retries:${retries},backoff:${backoffMs}ms} latencyMs=${latencyMs}ms`
       );
 
-      return {
+      const response: ChatResponse = {
         answer: parsedPayload?.answer?.trim() || REFUSAL_MESSAGES[lang],
         citations: [],
         latencyMs,
@@ -131,6 +172,9 @@ export class ChatService {
           totalMs: latencyMs,
         },
       };
+
+      questionCache.set(lang, message, response);
+      return response;
     }
 
     // 4. Citation Mapping: Validate chunk IDs and map strictly to stored metadata
@@ -142,6 +186,43 @@ export class ChatService {
 
     // Fallback: if answerable is true but LLM omitted chunk IDs, use top-1 retrieved chunk
     const finalChunkIds = validatedIds.length > 0 ? validatedIds : [chunks[0].id];
+
+    // 5. Faithfulness Guard: Verify every number and percentage against used chunks
+    const usedChunks = finalChunkIds.map((id) => validChunkMap.get(id)!).filter(Boolean);
+    const faithfulness = FaithfulnessGuard.verifyFaithfulness(
+      parsedPayload.answer,
+      usedChunks.map((c) => c.text)
+    );
+
+    if (!faithfulness.faithful) {
+      const latencyMs = Date.now() - startTime;
+      console.warn(
+        `[FaithfulnessGuard] ungrounded_number detected: [${faithfulness.ungroundedNumbers.join(
+          ', '
+        )}] queryHash=${queryHash} lang=${lang} decision=refused_faithfulness_guard latencyMs=${latencyMs}ms`
+      );
+
+      const response: ChatResponse = {
+        answer: REFUSAL_MESSAGES[lang],
+        citations: [],
+        latencyMs,
+        answerable: false,
+        topScore,
+        faithfulnessChecked: true,
+        timings: {
+          langDetectMs,
+          embedMs,
+          vectorSearchMs: searchMs,
+          llmMs,
+          retries,
+          backoffMs,
+          totalMs: latencyMs,
+        },
+      };
+
+      questionCache.set(lang, message, response);
+      return response;
+    }
 
     const citations: Citation[] = finalChunkIds.map((id) => {
       const chunk = validChunkMap.get(id)!;
@@ -159,13 +240,14 @@ export class ChatService {
       `[CHAT_REQUEST] queryHash=${queryHash} lang=${lang} topScore=${topScore.toFixed(4)} decision=answered usedChunks=${citations.length} timing={lang:${langDetectMs}ms,embed:${embedMs}ms,vectorSearch:${searchMs}ms,llm:${llmMs}ms,retries:${retries},backoff:${backoffMs}ms} latencyMs=${latencyMs}ms`
     );
 
-    return {
+    const response: ChatResponse = {
       answer: parsedPayload.answer,
       citations,
       latencyMs,
       answerable: true,
       topScore,
       usedChunkIds: finalChunkIds,
+      faithfulnessChecked: true,
       timings: {
         langDetectMs,
         embedMs,
@@ -176,6 +258,9 @@ export class ChatService {
         totalMs: latencyMs,
       },
     };
+
+    questionCache.set(lang, message, response);
+    return response;
   }
 
   private parseLlmJson(rawText: string): LlmAnswerPayload | null {

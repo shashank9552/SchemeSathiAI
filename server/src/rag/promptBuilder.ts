@@ -15,6 +15,11 @@ export const REFUSAL_MESSAGES = {
   hi: 'उपलब्ध आधिकारिक योजना दस्तावेजों में इस संबंध में कोई जानकारी नहीं मिली। कृपया संबंधित विभाग के आधिकारिक पोर्टल या निकटतम सुविधा केंद्र से संपर्क करें।',
 };
 
+export const QUOTA_ERROR_MESSAGES = {
+  en: 'The service is currently experiencing high demand. Please try again shortly.',
+  hi: 'सेवा पर इस समय अत्यधिक लोड है। कृपया कुछ समय बाद पुनः प्रयास करें।',
+};
+
 export class PromptBuilder {
   /**
    * Builds the system instruction enforcing grounding, language matching,
@@ -30,7 +35,7 @@ export class PromptBuilder {
 
 CRITICAL OPERATIONAL RULES:
 1. ${UNTRUSTED_DATA_WARNING}
-2. GROUNDING RULE: You must answer ONLY using facts explicitly stated in the provided reference passages. Do NOT extrapolate, invent, or bring in outside knowledge not present in the passages.
+2. GROUNDING RULE: You must answer ONLY using facts explicitly stated in the provided reference passages. Do NOT extrapolate, invent, or bring in outside knowledge not present in the passages. Never introduce any number, percentage, subsidy amount, or eligibility limit that does not appear directly in the reference passages.
 3. INSUFFICIENT CONTEXT / REFUSAL: If the provided reference passages do not contain sufficient specific facts to directly answer the user question, you MUST set "answerable": false.
 4. LANGUAGE: ${langRequirement}
 5. OUTPUT CONTRACT: You must respond ONLY with a single valid JSON object strictly matching this schema:

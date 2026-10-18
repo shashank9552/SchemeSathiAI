@@ -45,4 +45,6 @@ export interface ChatResponse {
   topScore?: number;
   usedChunkIds?: string[];
   timings?: StageTimings;
+  cached?: boolean;
+  faithfulnessChecked?: boolean;
 }

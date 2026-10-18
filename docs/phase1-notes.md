@@ -97,6 +97,26 @@ Lenient Recall@5 (Scheme-level only) | 100.0%    | Top-5 chunks include expected
 > [!IMPORTANT]
 > **Provisional `MIN_SIMILARITY=0.86` & Two-Gate Architecture Evaluation**:
 > - `MIN_SIMILARITY=0.86` is configured in `.env` as the provisional value for end-to-end testing.
-> - **Rationale**: At `0.86`, 100% of answerable questions (12/12) pass the vector similarity gate without false rejections. Meanwhile, 4 near-topic unanswerable questions (`UNANS-01`, `UNANS-02`, `UNANS-03`, `UNANS-05`) intentionally leak through the first gate to the LLM. This provides a rigorous end-to-end evaluation of the **second gate** (LLM groundedness and refusal logic), verifying that the LLM correctly refuses unanswerable queries despite receiving partially related chunks.
-> - The top retrieved vector score, decision, used chunks count, and latency are logged on every chat request in `POST /api/chat`.
+> - **Rationale**: At `0.86`, 100% of answerable questions pass the vector similarity gate without false rejections. Meanwhile, 4 near-topic unanswerable questions (`UNANS-01` [ECLGS], `UNANS-02` [GST Exemption], `UNANS-03` [MUDRA Shishu], `UNANS-05` [PM Kisan]) pass Gate 1 to thoroughly test Gate 2 LLM refusal.
+> - The top retrieved vector score, decision, used chunks count, stage timings, and faithfulness check status are logged on every chat request in `POST /api/chat`.
 > - **Mandatory Recalibration**: Whenever additional scheme PDFs are ingested into `data/raw_pdfs/`, `scripts/test-atlas-vector-search.ts` must be re-run and `MIN_SIMILARITY` recalibrated against the expanded corpus.
+
+---
+
+## 4. Benchmark Refinements & Guardrails
+
+### ANS-07 Grounding & Question Rewrite
+- **Original Question**: *"Where can an aspiring entrepreneur attend a one-day awareness and motivation training camp to explore self-employment career options?"*
+- **Refusal Cause**: Booklet Page 15 defines what the Entrepreneurship Awareness Programme (EAP) is and who it is for, but does not provide physical venue/location information (venues are only specified for Advance ESDP). Under strict zero-hallucination instructions, the LLM correctly set `answerable: false`.
+- **Rewritten Question**: *"What is the Entrepreneurship Awareness Programme and who is it for?"*
+- **Outcome**: Successfully answered with `expectedPage: 15` and citation to ESDP Scheme on Page 15.
+
+### Corpus Discovery & UNANS-01 Relabeling
+- **PM Vishwakarma Toolkit Query**: Originally labeled as out-of-corpus `UNANS-01`. However, official PDF pages 36–37 explicitly cover PM Vishwakarma toolkit vouchers up to ₹15,000 for artisans (including carpenters) and Common Service Centre (CSC) applications.
+- Moved to answerable set as `ANS-13` with `expectedPage: 37`.
+- Added genuine near-topic unanswerable `UNANS-01`: *"What are the eligibility criteria and maximum loan guarantee under the Emergency Credit Line Guarantee Scheme (ECLGS) for MSMEs?"* (confirmed 0 occurrences in corpus, passes Gate 1 with score 0.8895 and is refused by Gate 2 LLM).
+
+### Faithfulness Guard
+- Post-generation guard extracting every numerical token and percentage from the LLM answer.
+- Validates each against the cited chunk texts.
+- Any ungrounded statistic (e.g. general category 15%/25% subsidy not in chunk) triggers an immediate standard refusal, logged as `ungrounded_number`.
