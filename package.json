@@ -8,7 +8,7 @@
     "client"
   ],
   "scripts": {
-    "dev": "npm run dev:server",
+    "dev": "concurrently -n \"server,client\" -c \"blue,green\" \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
     "build": "npm --prefix server run build && npm --prefix client run build",
@@ -29,5 +29,8 @@
     "citations"
   ],
   "author": "SchemeSathi Team",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  }
 }

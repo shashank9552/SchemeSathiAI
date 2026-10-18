@@ -7,14 +7,14 @@ import { z } from 'zod';
 import { ChatService } from '../rag/chatService.js';
 
 const chatSchema = z.object({
-  message: z.string().trim().min(1, 'Message cannot be empty').max(1000, 'Message too long (max 1000 chars)'),
+  message: z.string().trim().min(1, 'Message cannot be empty').max(500, 'Message cannot exceed 500 characters'),
   language: z.enum(['en', 'hi']).optional(),
 });
 
 export const chatRouter = Router();
 const chatService = new ChatService();
 
-chatRouter.post('/', async (req, res) => {
+chatRouter.post('/', async (req, res, next) => {
   try {
     const parseResult = chatSchema.safeParse(req.body);
     if (!parseResult.success) {
@@ -47,9 +47,7 @@ chatRouter.post('/', async (req, res) => {
       });
     }
 
-    console.error(`[CHAT_API_ERROR] ${err.message}`);
-    return res.status(500).json({
-      error: 'Internal server error while processing chat message.',
-    });
+    // Delegate unexpected error to centralized error handler
+    return next(err);
   }
 });

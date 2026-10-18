@@ -11,20 +11,26 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { config } from "./config/index.js";
 import { chatRouter } from "./routes/chat.js";
+import { errorHandler } from "./middleware/errorHandler.js";
 
 export const app = express();
 const PORT = Number(config.PORT || 5000);
 const allowedOrigin = config.CORS_ORIGIN || "http://localhost:3000";
 
+// Security headers
 app.use(helmet());
-app.use(cors({ origin: allowedOrigin }));
-app.use(express.json({ limit: "1mb" }));
 
-// Rate limiting middleware
+// CORS restricted to configured origin
+app.use(cors({ origin: allowedOrigin }));
+
+// Strict body size limit (10kb)
+app.use(express.json({ limit: "10kb" }));
+
+// Rate limiting middleware using configured limits
 app.use(
   rateLimit({
     windowMs: Number(config.RATE_LIMIT_WINDOW_MS || 60000),
-    limit: Number(config.RATE_LIMIT_MAX || 60),
+    limit: Number(config.RATE_LIMIT_MAX || 30),
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: "Too many requests. Please try again after a minute." },
@@ -50,7 +56,15 @@ app.get("/api/health", (_req, res) => {
 // Grounded RAG Chat endpoint
 app.use("/api/chat", chatRouter);
 
-// Start server only when run directly
+// 404 handler
+app.use((_req, res) => {
+  res.status(404).json({ error: "Endpoint not found" });
+});
+
+// Centralised error handling middleware
+app.use(errorHandler);
+
+// Start server only when not running in test mode
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
     console.log(`SchemeSathi API running at http://localhost:${PORT}`);

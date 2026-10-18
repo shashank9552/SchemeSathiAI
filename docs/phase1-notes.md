@@ -118,5 +118,38 @@ Lenient Recall@5 (Scheme-level only) | 100.0%    | Top-5 chunks include expected
 
 ### Faithfulness Guard
 - Post-generation guard extracting every numerical token and percentage from the LLM answer.
-- Validates each against the cited chunk texts.
+- Validates each against the cited chunk texts. Supports number variants (`1` vs `1.00`), language variants (`50 lakh` vs `50 लाख`), and Devanagari numerals (`५० लाख`, `९०%`).
 - Any ungrounded statistic (e.g. general category 15%/25% subsidy not in chunk) triggers an immediate standard refusal, logged as `ungrounded_number`.
+
+---
+
+## 5. Security & Client UI Architecture (Deliverables 5 & 6)
+
+### Deliverable 5: Security Hardening
+1. **Security Headers**: Managed via `helmet()`, enforcing `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, and CSP defaults.
+2. **CORS Enforcement**: Strictly restricted to `CORS_ORIGIN` (defaults to `http://localhost:3000`).
+3. **Rate Limiting**: Configured via `express-rate-limit` using `RATE_LIMIT_WINDOW_MS` (60,000 ms) and `RATE_LIMIT_MAX` (30 requests/window). Exceeding requests receive standard `429 Too Many Requests`.
+4. **Payload & Size Constraints**:
+   - Express JSON body parser strictly capped at `10kb` (returns `413 Payload Too Large` on violation).
+   - Chat query message capped at 500 characters validated via Zod schema (`message.trim().min(1).max(500)`). Returns `400 Bad Request` on violation.
+5. **Centralised Error & Secret Scrubbing**:
+   - `errorHandler` catches JSON syntax errors, size violations, and internal exceptions.
+   - Zero stack traces or internal connection details exposed in client responses.
+   - Logs are scrubbed via `sanitizeLog()` removing any MongoDB connection strings (`mongodb+srv://...`) or Gemini API keys (`AIzaSy...`).
+6. **Automated Security Verification**:
+   - `server/tests/security.test.ts` validates security headers, CORS origin reflection, 400 validation, 413 size rejection, 429 rate limiting, and log sanitization.
+
+### Deliverable 6: Bilingual Next.js Client
+1. **Architecture**: Next.js 14 App Router with Tailwind CSS located in `client/`.
+2. **Language Toggle & Translation**:
+   - Instant toggle between English and हिन्दी.
+   - Translated UI components, placeholders, buttons, sample questions, and refusal copy.
+3. **Grounded Citations**:
+   - Collapsible cards displaying scheme name, document name, page number, and readable excerpts.
+   - Displayed only when `answerable: true` and citations are returned by the server.
+4. **Official Disclaimer**:
+   - Prominently displayed: *"SchemeSathi gives guidance from official documents only. Always confirm details on the official government portal."*
+5. **Zero Persistence Guarantee**:
+   - Chat conversation is stored purely in React state memory; no messages are persisted to browser `localStorage` or `sessionStorage`.
+6. **Unified Developer Experience**:
+   - Single command runner in root `package.json`: `npm run dev` boots both the Express server and Next.js client concurrently.

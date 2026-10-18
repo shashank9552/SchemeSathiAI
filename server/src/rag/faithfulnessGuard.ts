@@ -66,19 +66,40 @@ export class FaithfulnessGuard {
     for (const token of extracted) {
       const isPercent = token.endsWith('%');
       const numericVal = isPercent ? token.slice(0, -1) : token;
+      const num = parseFloat(numericVal);
+
+      // Generate variant candidate strings (e.g. "1" <-> "1.00", "1.0")
+      const candidates: string[] = [numericVal];
+      if (!isNaN(num) && Number.isInteger(num)) {
+        candidates.push(String(num));
+        candidates.push(`${num}.00`);
+        candidates.push(`${num}.0`);
+      }
+
+      let matched = false;
 
       if (isPercent) {
         // Look for "15%", "15 %", "15 percent", or "15 प्रतिशत" in chunks
-        const percentRegex = new RegExp(`(?:\\b|[^0-9.])${numericVal}\\s*(?:%|percent|प्रतिशत)`, 'i');
-        if (!percentRegex.test(combinedChunksAscii)) {
-          ungroundedNumbers.push(token);
+        for (const cand of candidates) {
+          const percentRegex = new RegExp(`(?:\\b|[^0-9.])${cand.replace('.', '\\.')}\\s*(?:%|percent|प्रतिशत)`, 'i');
+          if (percentRegex.test(combinedChunksAscii)) {
+            matched = true;
+            break;
+          }
         }
       } else {
-        // Look for standalone number token (e.g., "18", "50", "1.00")
-        const numberRegex = new RegExp(`(?:\\b|[^0-9.])${numericVal}(?:\\b|[^0-9.])`, 'i');
-        if (!numberRegex.test(combinedChunksAscii)) {
-          ungroundedNumbers.push(token);
+        // Look for standalone number token (e.g., "18", "50", "1.00", "1")
+        for (const cand of candidates) {
+          const numberRegex = new RegExp(`(?:\\b|[^0-9.])${cand.replace('.', '\\.')}(?:\\b|[^0-9.])`, 'i');
+          if (numberRegex.test(combinedChunksAscii)) {
+            matched = true;
+            break;
+          }
         }
+      }
+
+      if (!matched) {
+        ungroundedNumbers.push(token);
       }
     }
 
