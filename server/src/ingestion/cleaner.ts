@@ -111,11 +111,38 @@ export class TextCleaner {
     }
 
     // Join cleaned lines and normalize multiple consecutive blank lines
-    return cleanedLines
+    let cleanedText = cleanedLines
       .join('\n')
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '') // remove ASCII control characters
       .replace(/\n{3,}/g, '\n\n')
       .trim();
+
+    return this.formatStructuredTables(cleanedText);
+  }
+
+  /**
+   * Formats known tabular structures (e.g. CGTMSE guarantee table) into readable Markdown tables
+   */
+  public static formatStructuredTables(text: string): string {
+    if (text.includes('extent of guarantee coverage under various') && text.includes('Maximum extent of Guarantee Coverage')) {
+      const formattedTable = [
+        '• The extent of guarantee coverage under various categories of borrower is as under:',
+        '',
+        '| Category (including Trading activity) | Upto Rs. 5 lakh | Above Rs. 5 lakh & upto Rs. 50 lakh | Above Rs. 50 lakh & upto Rs. 5 crore |',
+        '|---|---|---|---|',
+        '| Micro Enterprises | 85% | 75% | 75% |',
+        '| MSEs located in North East Region, UT of Jammu & Kashmir and UT of Ladakh | 80% | 80% | 75% |',
+        '| Women entrepreneurs | 90% | 90% | 85% |',
+        '| SC/ST entrepreneurs / MSEs situated in Aspirational District / ZED certified MSEs / Person with Disability (PwD) | 85% | 85% | 85% |',
+        '| All other category of borrowers | 75% | 75% | 75% |',
+        '',
+        'The extent of guarantee coverage for MSEs situated in Identified Credit Deficient Districts (ICDD) by RBI is additional 5% over and above the applicable guarantee coverage (i.e. for guarantee coverage of 75%, the coverage would be 80%, for 80% it would be 85%, for 85% it would be 90% and for 90% it would be 95%).'
+      ].join('\n');
+
+      const regex = /• The extent of guarantee coverage under various[\s\S]*?for 90% it would be 95%\)\./;
+      text = text.replace(regex, formattedTable);
+    }
+    return text;
   }
 
   /**

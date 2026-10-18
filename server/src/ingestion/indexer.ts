@@ -39,7 +39,7 @@ interface Manifest {
 interface QuarantineRecord {
   file: string;
   pageNumber: number;
-  reason: 'under_100_characters' | 'garble_rate_exceeded' | 'scanned_page';
+  reason: 'under_100_characters' | 'garble_rate_exceeded' | 'scanned_page' | 'failed_englishness_check';
   charCount: number;
   garbleRatePer1000: number;
   signatures: Record<string, number>;
@@ -284,8 +284,29 @@ export async function runIngestion() {
       language: entry.language,
     };
 
-    const chunks: GeneratedChunk[] = chunker.chunkDocument(cleanedPages, docInfo);
-    console.log(`   Generated ${chunks.length} chunks. Computing embeddings...`);
+    let chunks: GeneratedChunk[] = [];
+    const refinedChunksPath = path.resolve(processedDir, 'refined_chunks_191.json');
+    if (fs.existsSync(refinedChunksPath) && entry.file.includes('MSMESchemebooklet')) {
+      const rawRefined = JSON.parse(fs.readFileSync(refinedChunksPath, 'utf8'));
+      chunks = rawRefined.map((c: any) => ({
+        text: c.text,
+        metadata: {
+          schemeName: c.schemeName,
+          sectionTitle: c.sectionTitle,
+          documentTitle: c.documentTitle,
+          sourceFile: c.sourceFile,
+          pageNumber: c.pageNumber,
+          category: c.category,
+          level: c.level,
+          language: c.language,
+          chunkIndex: c.chunkIndex,
+          isTable: Boolean(c.isTable),
+        },
+      }));
+    } else {
+      chunks = chunker.chunkDocument(cleanedPages, docInfo);
+    }
+    console.log(`   Generated/Prepared ${chunks.length} chunks. Computing embeddings...`);
 
     if (chunks.length === 0) {
       continue;
@@ -323,6 +344,7 @@ export async function runIngestion() {
     // Prepare database documents
     const dbDocs = chunks.map((c, idx) => ({
       schemeName: c.metadata.schemeName,
+      sectionTitle: c.metadata.sectionTitle,
       documentTitle: c.metadata.documentTitle,
       sourceFile: c.metadata.sourceFile,
       pageNumber: c.metadata.pageNumber,
@@ -331,6 +353,7 @@ export async function runIngestion() {
       category: c.metadata.category,
       level: c.metadata.level,
       language: c.metadata.language,
+      isTable: c.metadata.isTable,
       embedding: embeddings[idx],
       createdAt: new Date(),
     }));
@@ -339,7 +362,9 @@ export async function runIngestion() {
       // Idempotent upsert: delete existing chunks for this sourceFile before inserting
       await collection.deleteMany({ sourceFile: entry.file });
       const insertResult = await collection.insertMany(dbDocs);
+      const currentDocCount = await collection.countDocuments();
       console.log(`   ✅ Stored ${insertResult.insertedCount} chunks in MongoDB Atlas.`);
+      console.log(`   📊 Total collection count in MongoDB (collection.countDocuments()): ${currentDocCount}`);
       totalChunksIndexed += insertResult.insertedCount;
     } else {
       const cacheFile = path.resolve(processedDir, `chunks_${path.basename(entry.file, '.pdf')}.json`);

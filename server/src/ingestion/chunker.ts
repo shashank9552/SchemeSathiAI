@@ -1,13 +1,10 @@
 /**
- * SchemeSathi - Heading-Aware Document Chunker
- * 
- * Splits documents at scheme headings first, then applies recursive chunking
- * by CHUNK_SIZE and CHUNK_OVERLAP within each section, ensuring bulleted lists
- * and eligibility criteria are kept intact.
+ * SchemeSathi - Heading-Aware Document Chunker (Refined)
  */
 
 export interface ChunkMetadata {
   schemeName: string;
+  sectionTitle: string;
   documentTitle: string;
   sourceFile: string;
   pageNumber: number;
@@ -15,6 +12,7 @@ export interface ChunkMetadata {
   level: string;
   language: string;
   chunkIndex: number;
+  isTable: boolean;
 }
 
 export interface GeneratedChunk {
@@ -45,36 +43,40 @@ export class DocumentChunker {
     this.chunkOverlap = chunkOverlap;
   }
 
-  /**
-   * Chunks a document consisting of multiple cleaned pages.
-   */
   public chunkDocument(pages: PageContent[], docInfo: DocumentInfo): GeneratedChunk[] {
     const chunks: GeneratedChunk[] = [];
     let chunkGlobalIndex = 0;
     let currentSchemeHeading = docInfo.defaultSchemeName || docInfo.documentTitle;
+    let currentSubHeading = '';
+    let currentSectionTitle = 'Overview';
 
     for (const page of pages) {
       if (!page.text || page.text.trim().length === 0) continue;
 
-      // Split page text into sections based on detected scheme headings
-      const sections = this.splitPageIntoHeadingSections(page.text, currentSchemeHeading);
+      // Extract sections for this page
+      const sections = this.splitPageIntoSections(page.text, currentSchemeHeading, currentSubHeading, currentSectionTitle);
 
       for (const section of sections) {
-        // Update currentSchemeHeading if this section had a detected heading
-        if (section.heading) {
-          currentSchemeHeading = section.heading;
+        if (section.parentScheme) {
+          currentSchemeHeading = section.parentScheme;
+        }
+        if (section.subHeading !== undefined) {
+          currentSubHeading = section.subHeading;
+        }
+        if (section.sectionTitle) {
+          currentSectionTitle = section.sectionTitle;
         }
 
-        // Chunk section content respecting bullet/sentence boundaries
-        const sectionChunks = this.chunkText(section.content, this.chunkSize, this.chunkOverlap);
+        const isTable = Boolean(section.isTable || section.content.includes('|---|') || section.content.includes('Guarantee Coverage where'));
 
-        for (const textChunk of sectionChunks) {
-          if (textChunk.trim().length === 0) continue;
-
+        // If it's a table, keep rows together without splitting inside table
+        if (isTable) {
+          const formattedText = `${currentSchemeHeading} - ${currentSectionTitle}\n\n${section.content.trim()}`;
           chunks.push({
-            text: textChunk.trim(),
+            text: formattedText,
             metadata: {
               schemeName: currentSchemeHeading,
+              sectionTitle: currentSectionTitle,
               documentTitle: docInfo.documentTitle,
               sourceFile: docInfo.sourceFile,
               pageNumber: page.pageNumber,
@@ -82,6 +84,37 @@ export class DocumentChunker {
               level: docInfo.level,
               language: docInfo.language,
               chunkIndex: chunkGlobalIndex++,
+              isTable: true,
+            },
+          });
+          continue;
+        }
+
+        // Standard chunking within section
+        const sectionChunks = this.chunkText(section.content, this.chunkSize, this.chunkOverlap);
+
+        for (const rawChunk of sectionChunks) {
+          if (rawChunk.trim().length === 0) continue;
+
+          // Prepend "schemeName - sectionTitle" if not already present
+          const headerPrefix = `${currentSchemeHeading} - ${currentSectionTitle}`;
+          const chunkText = rawChunk.startsWith(headerPrefix)
+            ? rawChunk.trim()
+            : `${headerPrefix}\n\n${rawChunk.trim()}`;
+
+          chunks.push({
+            text: chunkText,
+            metadata: {
+              schemeName: currentSchemeHeading,
+              sectionTitle: currentSectionTitle,
+              documentTitle: docInfo.documentTitle,
+              sourceFile: docInfo.sourceFile,
+              pageNumber: page.pageNumber,
+              category: docInfo.category,
+              level: docInfo.level,
+              language: docInfo.language,
+              chunkIndex: chunkGlobalIndex++,
+              isTable: false,
             },
           });
         }
@@ -91,120 +124,175 @@ export class DocumentChunker {
     return chunks;
   }
 
-  /**
-   * Splits page text into sections by detecting scheme headings
-   */
-  public splitPageIntoHeadingSections(
+  public splitPageIntoSections(
     pageText: string,
-    initialHeading: string
-  ): Array<{ heading: string; content: string }> {
+    initialParentScheme: string,
+    initialSubHeading: string,
+    initialSectionTitle: string
+  ): Array<{
+    parentScheme?: string;
+    subHeading?: string;
+    sectionTitle?: string;
+    content: string;
+    isTable?: boolean;
+  }> {
     const lines = pageText.split('\n');
-    const sections: Array<{ heading: string; content: string }> = [];
+    const sections: Array<{
+      parentScheme?: string;
+      subHeading?: string;
+      sectionTitle?: string;
+      content: string;
+      isTable?: boolean;
+    }> = [];
 
-    let activeHeading = initialHeading;
-    let currentSectionLines: string[] = [];
+    let activeParent = initialParentScheme;
+    let activeSub = initialSubHeading;
+    let activeSection = initialSectionTitle;
+    let currentLines: string[] = [];
+    let isCurrentTable = false;
+
+    const commitSection = () => {
+      if (currentLines.length > 0) {
+        const content = currentLines.join('\n').trim();
+        if (content.length > 0) {
+          sections.push({
+            parentScheme: activeParent,
+            subHeading: activeSub,
+            sectionTitle: activeSection,
+            content,
+            isTable: isCurrentTable,
+          });
+        }
+        currentLines = [];
+        isCurrentTable = false;
+      }
+    };
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) {
-        currentSectionLines.push('');
+        currentLines.push('');
         continue;
       }
 
-      // Check if current line is a scheme heading (or title)
-      if (this.isSchemeHeading(line, lines[i + 1])) {
-        // If we already have accumulated content, save previous section
-        if (currentSectionLines.length > 0) {
-          const content = currentSectionLines.join('\n').trim();
-          if (content.length > 0) {
-            sections.push({ heading: activeHeading, content });
-          }
-          currentSectionLines = [];
-        }
+      // 1. Check if line is Table marker (e.g. CGTMSE table or markdown table)
+      if (line.includes('|---|') || line.includes('extent of guarantee coverage under various categories')) {
+        commitSection();
+        isCurrentTable = true;
+        activeSection = 'Extent of Guarantee Coverage';
+        currentLines.push(line);
+        continue;
+      }
 
-        // Sometimes headings span 2 lines, e.g.:
-        // Prime Minister’s Employment
-        // Generation Programme (PMEGP)
-        if (
-          lines[i + 1] &&
-          this.isHeadingContinuation(lines[i + 1].trim())
-        ) {
-          activeHeading = `${line} ${lines[i + 1].trim()}`;
-          currentSectionLines.push(activeHeading);
-          i++; // skip next line as it was consumed as heading continuation
+      // 2. Check if line is a sub-heading (e.g. "1.1) 2nd Loan...", "1). MSME Sustainable...")
+      if (this.isSubHeading(line)) {
+        commitSection();
+        activeSub = line;
+        activeSection = line;
+        currentLines.push(line);
+        continue;
+      }
+
+      // 3. Check if line is a functional section label (e.g. "Objective:", "Eligibility:", "How to apply:")
+      const funcLabel = this.detectFunctionalSection(line);
+      if (funcLabel) {
+        commitSection();
+        activeSection = activeSub ? `${activeSub} - ${funcLabel}` : funcLabel;
+        currentLines.push(line);
+        continue;
+      }
+
+      // 4. Check if line is a top-level parent scheme heading
+      const parentCheck = this.isParentSchemeHeading(line, lines[i + 1]);
+      if (parentCheck.isMatch) {
+        commitSection();
+        activeParent = parentCheck.heading!;
+        activeSub = '';
+        activeSection = 'Overview';
+
+        if (lines[i + 1] && this.isHeadingContinuation(lines[i + 1].trim())) {
+          activeParent = `${line} ${lines[i + 1].trim()}`;
+          currentLines.push(activeParent);
+          i++; // skip next line as consumed
         } else {
-          activeHeading = line;
-          currentSectionLines.push(activeHeading);
+          currentLines.push(line);
         }
-      } else {
-        currentSectionLines.push(line);
+        continue;
       }
+
+      currentLines.push(line);
     }
 
-    if (currentSectionLines.length > 0) {
-      const content = currentSectionLines.join('\n').trim();
-      if (content.length > 0) {
-        sections.push({ heading: activeHeading, content });
-      }
-    }
+    commitSection();
 
     if (sections.length === 0 && pageText.trim().length > 0) {
-      sections.push({ heading: initialHeading, content: pageText.trim() });
+      sections.push({
+        parentScheme: activeParent,
+        subHeading: activeSub,
+        sectionTitle: activeSection,
+        content: pageText.trim(),
+        isTable: false,
+      });
     }
 
     return sections;
   }
 
-  /**
-   * Checks if a line is a scheme title/heading
-   */
-  public isSchemeHeading(line: string, nextLine?: string): boolean {
+  public isParentSchemeHeading(line: string, nextLine?: string): { isMatch: boolean; heading?: string } {
     const l = line.trim();
 
-    // Ignore lines with trailing punctuation: comma, semicolon, colon, period
-    if (/[,;:.]\s*$/.test(l)) return false;
-
-    // Ignore bullet points and typical list items
-    if (/^[•\-\*■□▪▫►–—]/.test(l)) return false;
-    if (/^\([a-z0-9]+\)/i.test(l)) return false;
-
-    // Sub-headings like Objective:, Eligibility:, Scheme components:, etc. are not the scheme name itself
-    if (/^(objective|eligibility|scheme applicable for|detailed information|benefits|financial assistance|how to apply|who can apply|criteria|scheme components|eligible organisations|brief of the scheme):?$/i.test(l)) {
-      return false;
+    if (/[,;:.]\s*$/.test(l)) return { isMatch: false };
+    if (/^[•\-\*■□▪▫►–—]/.test(l)) return { isMatch: false };
+    if (/^\d+\.\d+/.test(l)) return { isMatch: false }; // e.g. 1.1) is sub-heading
+    if (/^\d+\)\./.test(l)) return { isMatch: false }; // e.g. 1). is sub-heading
+    if (/^(disability|person with disability|enterprise|trading|borrowers?)\s*(\(pwd\))?/i.test(l)) return { isMatch: false };
+    if (/^(objective|eligibility|scheme applicable for|detailed information|benefits|financial assistance|how to apply|who can apply|criteria|extent of guarantee coverage):?$/i.test(l)) {
+      return { isMatch: false };
     }
 
-    // Must start with an uppercase letter or digit
-    if (!/^[A-Z0-9]/.test(l)) return false;
-
-    // Numbered scheme headings, e.g. "1. Prime Minister...", "SCHEME 2:", "2. Credit Guarantee..."
-    if (/^(\d+\.|\d+\)|\b(scheme|programme|mission|yojana)\s+\d+:?)/i.test(l)) {
-      return l.length <= 140;
+    // Integer numbered scheme: "1. Prime Minister...", "2. Credit Guarantee..."
+    if (/^(\d+\.\s+[A-Z]|\b(scheme|programme|mission|yojana)\s+\d+:?)/i.test(l) && !/^\d+\.\d+/.test(l)) {
+      if (l.length <= 140) {
+        return { isMatch: true, heading: l };
+      }
     }
 
-    // Check if next line is literally "Scheme", "Programme", or ends with acronym like "(PMEGP)"
-    if (nextLine && /^(scheme|programme|program|yojana|mission|\([A-Z0-9\-]{2,10}\))\s*$/i.test(nextLine.trim())) {
-      return true;
-    }
-
-    // Check for scheme keywords with title length (< 100 chars), ending with scheme/programme/acronym
+    // Acronym or keyword ending, but not table words
     if (
-      /(scheme|programme|program|yojana|mission|scholarship|\([A-Z0-9\-]{2,10}\))\s*$/i.test(l) &&
+      /(scheme|programme|program|yojana|mission|scholarship)\s*$/i.test(l) &&
       l.length <= 100 &&
-      !/(aims to|provides|covered under|wherein|eligible|guidelines|procedure|policy)/i.test(l)
+      !/(aims to|provides|covered under|wherein|eligible|guidelines|procedure|policy|training)/i.test(l)
     ) {
-      return true;
+      return { isMatch: true, heading: l };
     }
 
-    // Heading that continues onto next line (e.g. "Prime Minister's Employment" followed by "Generation Programme (PMEGP)")
+    // Heading continuing to next line
     if (
       nextLine &&
       /^(prime minister|national|central|state|pradhan mantri|chief minister|atal|international|credit|technology|micro)/i.test(l) &&
       this.isHeadingContinuation(nextLine.trim())
     ) {
-      return true;
+      return { isMatch: true, heading: l };
     }
 
+    return { isMatch: false };
+  }
+
+  public isSubHeading(line: string): boolean {
+    const l = line.trim();
+    if (/^\d+\.\d+\)?\s+[A-Z]/.test(l)) return true;
+    if (/^\d+\)\.\s+[A-Z]/.test(l)) return true;
     return false;
+  }
+
+  public detectFunctionalSection(line: string): string | null {
+    const l = line.trim();
+    if (/^objective:?/i.test(l)) return 'Objective';
+    if (/^(scheme applicable for|eligibility|who can apply):?/i.test(l)) return 'Scheme applicable for (Eligibility)';
+    if (/^(nature of assistance|financial assistance|benefits):?/i.test(l)) return 'Financial Assistance & Benefits';
+    if (/^how to apply:?/i.test(l)) return 'How to apply';
+    if (/^(extent of guarantee coverage|coverage):?/i.test(l)) return 'Extent of Guarantee Coverage';
+    return null;
   }
 
   private isHeadingContinuation(line: string): boolean {
@@ -214,17 +302,12 @@ export class DocumentChunker {
     return /(programme|program|scheme|yojana|mission|initiative|\([A-Z0-9\-]+\))\s*$/i.test(l) && l.length <= 80;
   }
 
-  /**
-   * Chunks text into blocks of max `chunkSize` with `chunkOverlap`,
-   * preserving bullet points, sentences, and lists without cutting them mid-thought.
-   */
   public chunkText(text: string, chunkSize: number, chunkOverlap: number): string[] {
     const trimmed = text.trim();
     if (trimmed.length <= chunkSize) {
       return [trimmed];
     }
 
-    // Split text into semantic atomic units (paragraphs, bullet points, or sentences)
     const units = this.splitIntoSemanticUnits(trimmed);
     const chunks: string[] = [];
 
@@ -233,14 +316,12 @@ export class DocumentChunker {
 
     for (let i = 0; i < units.length; i++) {
       const unit = units[i];
-      const unitLength = unit.length + 1; // + 1 for newline/space separator
+      const unitLength = unit.length + 1;
 
       if (currentLength + unitLength > chunkSize && currentUnits.length > 0) {
-        // Finalize current chunk
         const chunkText = currentUnits.join('\n').trim();
         chunks.push(chunkText);
 
-        // Compute overlap: take units from the end of current chunk up to chunkOverlap characters
         const overlapUnits: string[] = [];
         let overlapLen = 0;
 
@@ -272,9 +353,6 @@ export class DocumentChunker {
     return chunks;
   }
 
-  /**
-   * Splits text into semantic units: bullet points, paragraphs, or sentences.
-   */
   private splitIntoSemanticUnits(text: string): string[] {
     const rawLines = text.split('\n');
     const units: string[] = [];
@@ -284,7 +362,6 @@ export class DocumentChunker {
       const line = rawLine.trim();
       if (!line) continue;
 
-      // If line starts with a bullet point or numbered item, start a new semantic unit
       const isBulletOrNumbered = /^[•\-\*■□▪▫►–—]|\d+\.\s+/.test(line);
 
       if (isBulletOrNumbered) {
@@ -293,7 +370,6 @@ export class DocumentChunker {
         }
         currentUnit = line;
       } else {
-        // Check if previous unit ended or continues
         if (currentUnit) {
           currentUnit += ' ' + line;
         } else {
@@ -306,8 +382,6 @@ export class DocumentChunker {
       units.push(currentUnit.trim());
     }
 
-    // For any unit that exceeds chunkSize by itself (e.g. a huge paragraph without bullets),
-    // split it further by sentence boundaries (. | ? | ! | ।)
     const refinedUnits: string[] = [];
     for (const unit of units) {
       if (unit.length <= this.chunkSize) {

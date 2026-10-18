@@ -3,6 +3,7 @@ import { config } from '../config/index.js';
 
 export interface SchemeChunkDocument extends Document {
   schemeName: string;
+  sectionTitle?: string;
   documentTitle: string;
   sourceFile: string;
   pageNumber: number;
@@ -11,6 +12,7 @@ export interface SchemeChunkDocument extends Document {
   category: string;
   level: string;
   language: string;
+  isTable?: boolean;
   embedding: number[];
   createdAt: Date;
 }

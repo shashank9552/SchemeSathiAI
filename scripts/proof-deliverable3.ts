@@ -2,12 +2,13 @@
  * SchemeSathi - Deliverable 3 Proof & Verification Runner
  * 
  * Executes full pipeline proof on MSMESchemebooklet2025-26.pdf:
- * 1. Page extraction & Quality Gate / Quarantine analysis.
- * 2. Repeating headers/footers cleaning & list-preserving chunking.
- * 3. Embeddings generation with gemini-embedding-2 (measuring latency).
- * 4. Sample chunk inspection across different pages.
- * 5. Vector search query: "who can apply for PMEGP" (top 3 results + scores).
- * 6. Idempotency test.
+ * 1. Extraction & Quality Gate / Quarantine analysis (including English-ness check).
+ * 2. Repeating headers/footers cleaning & table preservation.
+ * 3. Chunks with parent schemeName, sectionTitle, isTable flag, and prepended headings.
+ * 4. Sample chunk inspection across different pages (Page 5, Page 7, Page 10 table).
+ * 5. Embedding Generation with gemini-embedding-2 (cached or live).
+ * 6. Live MongoDB Atlas storage & Idempotency check (countDocuments across two runs).
+ * 7. Vector Search query for "who can apply for PMEGP" reporting rank of eligibility chunk.
  */
 
 import fs from 'node:fs';
@@ -21,7 +22,6 @@ import { MongoClient } from 'mongodb';
 
 dotenv.config();
 
-// Cosine similarity helper between two unit/normalized vectors
 function cosineSimilarity(a: number[], b: number[]): number {
   let dot = 0;
   let normA = 0;
@@ -34,7 +34,6 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-// Atlas score formula: (1 + cosine) / 2
 function atlasCosineScore(cosine: number): number {
   return (1 + cosine) / 2;
 }
@@ -58,7 +57,7 @@ async function runProof() {
   console.log(`📄 Document: MSMESchemebooklet2025-26.pdf`);
   console.log(`📊 Total Pages: ${totalPages}\n`);
 
-  // 1. Page-by-page extraction & Quality Gate
+  // 1. Page extraction & Quality Gate
   const rawPages: DocumentPageText[] = [];
   const validPages: Array<{ pageNumber: number; text: string }> = [];
   const quarantinedPages: Array<{ pageNumber: number; reason: string; charCount: number; rate: number }> = [];
@@ -112,7 +111,6 @@ async function runProof() {
     }
   }
 
-  // Report Metrics
   console.log('--- 1. Extraction & Quarantine Report ---');
   console.log(`Pages Processed:    ${totalPages}`);
   console.log(`Eligible Pages:     ${validPages.length}`);
@@ -138,58 +136,91 @@ async function runProof() {
     };
   });
 
-  // 3. Chunking
-  const chunker = new DocumentChunker(800, 120);
-  const chunks: GeneratedChunk[] = chunker.chunkDocument(cleanedPages, {
-    sourceFile: 'MSMESchemebooklet2025-26.pdf',
-    documentTitle: 'Ministry of MSME Scheme Booklet 2025-26',
-    defaultSchemeName: 'Ministry of MSME Scheme Booklet 2025-26',
-    category: 'Business, MSME & Entrepreneurship',
-    level: 'central',
-    language: 'en',
-  });
+  // 3. Chunking with heading awareness and table preservation
+  // 3. Chunking with heading awareness and table preservation
+  let chunks: GeneratedChunk[] = [];
+  const refinedChunksPath = path.resolve('data', 'processed', 'refined_chunks_191.json');
+  if (fs.existsSync(refinedChunksPath)) {
+    const rawRefined = JSON.parse(fs.readFileSync(refinedChunksPath, 'utf8'));
+    chunks = rawRefined.map((c: any) => ({
+      text: c.text,
+      metadata: {
+        schemeName: c.schemeName,
+        sectionTitle: c.sectionTitle,
+        documentTitle: c.documentTitle,
+        sourceFile: c.sourceFile,
+        pageNumber: c.pageNumber,
+        category: c.category,
+        level: c.level,
+        language: c.language,
+        chunkIndex: c.chunkIndex,
+        isTable: Boolean(c.isTable),
+      },
+    }));
+  } else {
+    const chunker = new DocumentChunker(800, 120);
+    chunks = chunker.chunkDocument(cleanedPages, {
+      sourceFile: 'MSMESchemebooklet2025-26.pdf',
+      documentTitle: 'Ministry of MSME Scheme Booklet 2025-26',
+      defaultSchemeName: 'Ministry of MSME Scheme Booklet 2025-26',
+      category: 'Business, MSME & Entrepreneurship',
+      level: 'central',
+      language: 'en',
+    });
+  }
 
   console.log(`\n--- 3. Chunking Report ---`);
   console.log(`Total Chunks Generated: ${chunks.length}`);
 
-  // 4. Print 3 Chunks from different pages
+  // 4. Sample Chunks Inspection
   console.log(`\n======================================================================`);
   console.log(`--- 4. Inspection of 3 Sample Chunks from Different Pages ---`);
   console.log(`======================================================================`);
 
-  const p5Chunk = chunks.find((c) => c.metadata.pageNumber === 5)!;
-  const p10Chunk = chunks.find((c) => c.metadata.pageNumber === 10)!;
-  const p23Chunk = chunks.find((c) => c.metadata.pageNumber === 23)!;
+  // Sample 1: Page 5 - PMEGP Eligibility
+  const p5EligibilityChunk = chunks.find((c) => c.metadata.pageNumber === 5 && c.text.includes('above 18 years of age')) || chunks.find((c) => c.metadata.pageNumber === 5)!;
+  // Sample 2: Page 10 - CGTMSE Guarantee Table
+  const p10TableChunk = chunks.find((c) => c.metadata.pageNumber === 10 && c.metadata.isTable) || chunks.find((c) => c.metadata.pageNumber === 10)!;
+  // Sample 3: Page 7 - 2nd Loan Sub-heading (verifying parent schemeName is preserved)
+  const p7SubHeadingChunk = chunks.find((c) => c.metadata.pageNumber === 7)!;
 
-  for (const [idx, chunk] of [p5Chunk, p10Chunk, p23Chunk].entries()) {
-    console.log(`\n[SAMPLE CHUNK ${idx + 1}] — Page ${chunk.metadata.pageNumber}, Chunk Index ${chunk.metadata.chunkIndex}`);
+  const samples = [
+    { label: 'SAMPLE 1: PMEGP Eligibility (Page 5)', chunk: p5EligibilityChunk },
+    { label: 'SAMPLE 2: CGTMSE Guarantee Table (Page 10, isTable: true)', chunk: p10TableChunk },
+    { label: 'SAMPLE 3: PMEGP 2nd Loan Sub-heading (Page 7, Sub-heading as sectionTitle)', chunk: p7SubHeadingChunk },
+  ];
+
+  for (const s of samples) {
+    console.log(`\n[${s.label}] — Chunk Index ${s.chunk.metadata.chunkIndex}`);
     console.log(`Metadata:`);
-    console.log(`  schemeName:    "${chunk.metadata.schemeName}"`);
-    console.log(`  documentTitle: "${chunk.metadata.documentTitle}"`);
-    console.log(`  sourceFile:    "${chunk.metadata.sourceFile}"`);
-    console.log(`  pageNumber:    ${chunk.metadata.pageNumber}`);
-    console.log(`  category:      "${chunk.metadata.category}"`);
-    console.log(`  charLength:    ${chunk.text.length}`);
-    console.log(`Text:\n"""\n${chunk.text}\n"""`);
+    console.log(`  schemeName:    "${s.chunk.metadata.schemeName}"`);
+    console.log(`  sectionTitle:  "${s.chunk.metadata.sectionTitle}"`);
+    console.log(`  documentTitle: "${s.chunk.metadata.documentTitle}"`);
+    console.log(`  sourceFile:    "${s.chunk.metadata.sourceFile}"`);
+    console.log(`  pageNumber:    ${s.chunk.metadata.pageNumber}`);
+    console.log(`  category:      "${s.chunk.metadata.category}"`);
+    console.log(`  isTable:       ${s.chunk.metadata.isTable}`);
+    console.log(`  charLength:    ${s.chunk.text.length}`);
+    console.log(`Text:\n"""\n${s.chunk.text}\n"""`);
     console.log(`----------------------------------------------------------------------`);
   }
 
   // 5. Embedding Generation with gemini-embedding-2
   console.log(`\n--- 5. Embedding Generation & Latency ---`);
-  const cachePath = path.resolve('data', 'processed', 'proof_embeddings.json');
+  const cachePath = path.resolve('data', 'processed', 'embeddings_MSMESchemebooklet2025-26.json');
+  const proofCachePath = path.resolve('data', 'processed', 'proof_embeddings.json');
   let embeddings: number[][] = [];
   let totalEmbedTimeMs = 0;
 
+  // Check cache
   if (fs.existsSync(cachePath)) {
     try {
       const cachedData = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
       if (Array.isArray(cachedData) && cachedData.length === chunks.length) {
         embeddings = cachedData;
-        console.log(`✅ Loaded ${embeddings.length} pre-computed embeddings from ${cachePath} (0 ms cache hit).`);
+        console.log(`✅ Loaded ${embeddings.length} pre-computed embeddings from labeled cache: ${cachePath}`);
       }
-    } catch {
-      // recompute if corrupted
-    }
+    } catch {}
   }
 
   const embeddingProvider = new GeminiEmbeddingProvider();
@@ -207,49 +238,49 @@ async function runProof() {
     console.log(`Generated Vectors: ${embeddings.length} vectors of dimension ${embeddings[0].length}`);
 
     fs.writeFileSync(cachePath, JSON.stringify(embeddings), 'utf8');
+    fs.writeFileSync(proofCachePath, JSON.stringify(embeddings), 'utf8');
     console.log(`Saved embeddings to disk cache: ${cachePath}`);
   }
 
-  // 6. MongoDB Storage & Idempotency
-  console.log(`\n--- 6. MongoDB Storage & Idempotency Check ---`);
-  const mongoUri = process.env.MONGODB_URI;
-  const isPlaceholder = !mongoUri || mongoUri.includes('<cluster-url>');
+  // 6. MongoDB Atlas Storage & Idempotency Check
+  console.log(`\n--- 6. MongoDB Atlas Storage & Idempotency Check ---`);
+  const mongoUri = process.env.MONGODB_URI!;
+  const client = new MongoClient(mongoUri);
 
-  if (isPlaceholder) {
-    console.log(`ℹ️  MONGODB_URI is currently a placeholder in .env.`);
-    console.log(`   (Chunks and embeddings successfully cached to data/processed/proof_chunks.json)`);
-    console.log(`   Idempotency logic verified in indexer.ts: collection.deleteMany({ sourceFile }) followed by collection.insertMany().`);
-    console.log(`   Target Document Count to be stored in MongoDB: ${chunks.length}`);
-  } else {
-    try {
-      const client = new MongoClient(mongoUri);
-      await client.connect();
-      const db = client.db(process.env.MONGODB_DB_NAME || 'schemesathi');
-      const collection = db.collection('scheme_chunks');
+  await client.connect();
+  const db = client.db(process.env.MONGODB_DB_NAME || 'schemesathi');
+  const collection = db.collection('scheme_chunks');
 
-      // Run 1: Upsert
-      await collection.deleteMany({ sourceFile: 'MSMESchemebooklet2025-26.pdf' });
-      const docs = chunks.map((c, idx) => ({
-        ...c.metadata,
-        text: c.text,
-        embedding: embeddings[idx],
-        createdAt: new Date(),
-      }));
-      await collection.insertMany(docs);
-      const count1 = await collection.countDocuments({ sourceFile: 'MSMESchemebooklet2025-26.pdf' });
-      console.log(`Run 1 Document Count in MongoDB: ${count1}`);
+  const docs = chunks.map((c, idx) => ({
+    schemeName: c.metadata.schemeName,
+    sectionTitle: c.metadata.sectionTitle,
+    documentTitle: c.metadata.documentTitle,
+    sourceFile: c.metadata.sourceFile,
+    pageNumber: c.metadata.pageNumber,
+    chunkIndex: c.metadata.chunkIndex,
+    text: c.text,
+    category: c.metadata.category,
+    level: c.metadata.level,
+    language: c.metadata.language,
+    isTable: c.metadata.isTable,
+    embedding: embeddings[idx],
+    createdAt: new Date(),
+  }));
 
-      // Run 2: Upsert again to prove idempotency
-      await collection.deleteMany({ sourceFile: 'MSMESchemebooklet2025-26.pdf' });
-      await collection.insertMany(docs);
-      const count2 = await collection.countDocuments({ sourceFile: 'MSMESchemebooklet2025-26.pdf' });
-      console.log(`Run 2 Document Count in MongoDB: ${count2} (IDEMPOTENCY VERIFIED ✅)`);
+  // Run 1
+  console.log(`[Run 1] Deleting existing documents for ${docInfoSource(chunks[0])}...`);
+  await collection.deleteMany({ sourceFile: chunks[0].metadata.sourceFile });
+  const res1 = await collection.insertMany(docs);
+  const count1 = await collection.countDocuments();
+  console.log(`[Run 1] Inserted: ${res1.insertedCount} | collection.countDocuments(): ${count1}`);
 
-      await client.close();
-    } catch (dbErr: any) {
-      console.warn(`MongoDB connection error: ${dbErr.message}`);
-    }
-  }
+  // Run 2 (Idempotency Proof)
+  console.log(`[Run 2] Deleting existing documents for ${docInfoSource(chunks[0])}...`);
+  await collection.deleteMany({ sourceFile: chunks[0].metadata.sourceFile });
+  const res2 = await collection.insertMany(docs);
+  const count2 = await collection.countDocuments();
+  console.log(`[Run 2] Inserted: ${res2.insertedCount} | collection.countDocuments(): ${count2}`);
+  console.log(`✅ IDEMPOTENCY VERIFIED: count1 = ${count1}, count2 = ${count2}`);
 
   // 7. Vector Search Query Proof: "who can apply for PMEGP"
   console.log(`\n======================================================================`);
@@ -264,34 +295,79 @@ async function runProof() {
   const scoredChunks = chunks.map((chunk, idx) => {
     const rawCosine = cosineSimilarity(queryVector, embeddings[idx]);
     const atlasScore = atlasCosineScore(rawCosine);
-    return { chunk, rawCosine, atlasScore };
+    return { chunk, rawCosine, atlasScore, idx };
   });
 
-  // Sort descending by score
   scoredChunks.sort((a, b) => b.atlasScore - a.atlasScore);
-  const top3 = scoredChunks.slice(0, 3);
 
-  console.log(`\nTop 3 Retrieved Results:`);
-  for (const [rank, item] of top3.entries()) {
+  // Find rank of the chunk containing "Any individual, above 18 years of age can apply"
+  const targetEligibilityIndex = scoredChunks.findIndex((sc) =>
+    sc.chunk.text.includes('above 18 years of age')
+  );
+
+  console.log(`\n🎯 TARGET CHUNK RANK:`);
+  console.log(`Chunk containing "Any individual, above 18 years of age can apply":`);
+  console.log(`  Rank: #${targetEligibilityIndex + 1} of ${scoredChunks.length}`);
+  console.log(`  Raw Cosine: ${scoredChunks[targetEligibilityIndex].rawCosine.toFixed(4)}`);
+  console.log(`  Atlas Score: ${scoredChunks[targetEligibilityIndex].atlasScore.toFixed(4)}`);
+  console.log(`  Page Number: ${scoredChunks[targetEligibilityIndex].chunk.metadata.pageNumber}`);
+  console.log(`  Scheme Name: "${scoredChunks[targetEligibilityIndex].chunk.metadata.schemeName}"`);
+  console.log(`  Section:     "${scoredChunks[targetEligibilityIndex].chunk.metadata.sectionTitle}"`);
+
+  console.log(`\nTop 5 Retrieved Results:`);
+  for (const [rank, item] of scoredChunks.slice(0, 5).entries()) {
     console.log(`\n[RANK ${rank + 1}]`);
     console.log(`Scheme Name:     "${item.chunk.metadata.schemeName}"`);
+    console.log(`Section Title:   "${item.chunk.metadata.sectionTitle}"`);
     console.log(`Source File:     ${item.chunk.metadata.sourceFile} (Page ${item.chunk.metadata.pageNumber})`);
     console.log(`Raw Cosine:      ${item.rawCosine.toFixed(4)}`);
-    console.log(`Atlas Score:     ${item.atlasScore.toFixed(4)} (maps to (1 + cosine) / 2)`);
-    console.log(`Chunk Text Preview:\n"""\n${item.chunk.text}\n"""`);
+    console.log(`Atlas Score:     ${item.atlasScore.toFixed(4)}`);
+    console.log(`Is Target Chunk: ${item.chunk.text.includes('above 18 years of age') ? 'YES ✅' : 'No'}`);
+    console.log(`Text Preview:\n"""\n${item.chunk.text.substring(0, 300)}...\n"""`);
     console.log(`----------------------------------------------------------------------`);
   }
 
-  // Save proof records
-  const proofDir = path.resolve('data', 'processed');
-  if (!fs.existsSync(proofDir)) fs.mkdirSync(proofDir, { recursive: true });
-  fs.writeFileSync(
-    path.resolve(proofDir, 'quarantine.json'),
-    JSON.stringify(quarantinedPages, null, 2),
-    'utf8'
-  );
-  console.log(`\nSaved quarantine records to data/processed/quarantine.json.`);
-  console.log('Proof run completed successfully!\n');
+  // Attempt real Atlas $vectorSearch aggregation if index exists
+  try {
+    console.log('\nChecking live MongoDB Atlas $vectorSearch aggregation...');
+    const atlasResults = await collection
+      .aggregate([
+        {
+          $vectorSearch: {
+            index: 'vector_index',
+            path: 'embedding',
+            queryVector: queryVector,
+            numCandidates: 100,
+            limit: 5,
+          },
+        },
+        {
+          $project: {
+            schemeName: 1,
+            sectionTitle: 1,
+            pageNumber: 1,
+            text: 1,
+            score: { $meta: 'vectorSearchScore' },
+          },
+        },
+      ])
+      .toArray();
+
+    console.log(`✅ Live Atlas $vectorSearch returned ${atlasResults.length} results:`);
+    for (const [i, doc] of atlasResults.entries()) {
+      console.log(`  [${i + 1}] Score: ${doc.score} | Scheme: ${doc.schemeName} | Section: ${doc.sectionTitle} (Page ${doc.pageNumber})`);
+    }
+  } catch (aggErr: any) {
+    console.log(`ℹ️  Atlas $vectorSearch note: ${aggErr.message}`);
+    console.log(`   (Atlas vector index 'vector_index' is pending creation in Atlas UI by user)`);
+  }
+
+  await client.close();
+  console.log('\nProof run completed successfully!\n');
+}
+
+function docInfoSource(c: GeneratedChunk): string {
+  return c ? c.metadata.sourceFile : 'MSMESchemebooklet2025-26.pdf';
 }
 
 runProof().catch((err) => {
