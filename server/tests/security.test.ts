@@ -1,111 +1,130 @@
 process.env.NODE_ENV = 'test';
 
-import { test } from 'node:test';
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import { AddressInfo, Socket } from 'node:net';
 import express from 'express';
-import rateLimit from 'express-rate-limit';
-import helmet from 'helmet';
-import cors from 'cors';
-import { app } from '../src/server.js';
+import rateLimit, { MemoryStore } from 'express-rate-limit';
+import { app } from '../src/app.js';
 import { errorHandler, sanitizeLog } from '../src/middleware/errorHandler.js';
 
-// Helper to launch an ephemeral HTTP server on a random free port
-async function startEphemeralServer(expressApp: express.Express): Promise<{ server: http.Server; url: string }> {
+interface EphemeralServer {
+  server: http.Server;
+  url: string;
+  close: () => Promise<void>;
+}
+
+const activeServers: EphemeralServer[] = [];
+
+// Helper to launch an ephemeral HTTP server on a random free port and track sockets
+async function startEphemeralServer(expressApp: express.Express): Promise<EphemeralServer> {
   return new Promise((resolve) => {
+    const sockets = new Set<Socket>();
     const server = expressApp.listen(0, '127.0.0.1', () => {
-      const addr = server.address() as { port: number; address: string };
-      resolve({ server, url: `http://127.0.0.1:${addr.port}` });
+      const addr = server.address() as AddressInfo;
+      const ephemeralServer: EphemeralServer = {
+        server,
+        url: `http://127.0.0.1:${addr.port}`,
+        close: async () => {
+          for (const socket of sockets) {
+            socket.destroy();
+          }
+          if (typeof server.closeAllConnections === 'function') {
+            server.closeAllConnections();
+          }
+          await new Promise<void>((res) => server.close(() => res()));
+          const idx = activeServers.indexOf(ephemeralServer);
+          if (idx !== -1) {
+            activeServers.splice(idx, 1);
+          }
+        },
+      };
+      activeServers.push(ephemeralServer);
+      resolve(ephemeralServer);
+    });
+
+    server.on('connection', (socket) => {
+      sockets.add(socket);
+      socket.on('close', () => sockets.delete(socket));
     });
   });
 }
 
-test('Security Headers - Helmet applies security headers', async () => {
-  const { server, url } = await startEphemeralServer(app);
-  try {
-    const res = await fetch(`${url}/api/health`);
-    assert.equal(res.status, 200);
+let appServer: EphemeralServer;
 
-    const headers = res.headers;
-    // Check key helmet headers
-    assert.equal(headers.get('x-content-type-options'), 'nosniff', 'X-Content-Type-Options must be nosniff');
-    assert.equal(headers.get('x-dns-prefetch-control'), 'off', 'X-DNS-Prefetch-Control must be off');
-    assert.equal(headers.get('x-frame-options'), 'SAMEORIGIN', 'X-Frame-Options must be SAMEORIGIN');
-    assert.ok(headers.get('content-security-policy') !== null, 'Content-Security-Policy must be present');
-  } finally {
-    server.close();
+before(async () => {
+  appServer = await startEphemeralServer(app);
+});
+
+after(async () => {
+  for (const s of [...activeServers]) {
+    await s.close();
   }
+});
+
+test('Security Headers - Helmet applies security headers', async () => {
+  const res = await fetch(`${appServer.url}/api/health`);
+  assert.equal(res.status, 200);
+
+  const headers = res.headers;
+  // Check key helmet headers
+  assert.equal(headers.get('x-content-type-options'), 'nosniff', 'X-Content-Type-Options must be nosniff');
+  assert.equal(headers.get('x-dns-prefetch-control'), 'off', 'X-DNS-Prefetch-Control must be off');
+  assert.equal(headers.get('x-frame-options'), 'SAMEORIGIN', 'X-Frame-Options must be SAMEORIGIN');
+  assert.ok(headers.get('content-security-policy') !== null, 'Content-Security-Policy must be present');
 });
 
 test('CORS - Restricted to CORS_ORIGIN', async () => {
-  const { server, url } = await startEphemeralServer(app);
-  try {
-    const res = await fetch(`${url}/api/health`, {
-      headers: { Origin: 'http://localhost:3000' },
-    });
-    assert.equal(res.status, 200);
-    assert.equal(res.headers.get('access-control-allow-origin'), 'http://localhost:3000');
-  } finally {
-    server.close();
-  }
+  const res = await fetch(`${appServer.url}/api/health`, {
+    headers: { Origin: 'http://localhost:3000' },
+  });
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('access-control-allow-origin'), 'http://localhost:3000');
 });
 
 test('Validation 400 - Rejects empty message', async () => {
-  const { server, url } = await startEphemeralServer(app);
-  try {
-    const res = await fetch(`${url}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: '   ' }),
-    });
-    assert.equal(res.status, 400);
-    const body = await res.json();
-    assert.equal(body.error, 'Validation failed');
-    assert.ok(body.details.some((d: string) => d.includes('Message cannot be empty')));
-  } finally {
-    server.close();
-  }
+  const res = await fetch(`${appServer.url}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: '   ' }),
+  });
+  assert.equal(res.status, 400);
+  const body = await res.json();
+  assert.equal(body.error, 'Validation failed');
+  assert.ok(body.details.some((d: string) => d.includes('Message cannot be empty')));
 });
 
 test('Validation 400 - Rejects message exceeding 500 characters', async () => {
-  const { server, url } = await startEphemeralServer(app);
-  try {
-    const longMessage = 'A'.repeat(501);
-    const res = await fetch(`${url}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: longMessage }),
-    });
-    assert.equal(res.status, 400);
-    const body = await res.json();
-    assert.equal(body.error, 'Validation failed');
-    assert.ok(body.details.some((d: string) => d.includes('500 characters')));
-  } finally {
-    server.close();
-  }
+  const longMessage = 'A'.repeat(501);
+  const res = await fetch(`${appServer.url}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: longMessage }),
+  });
+  assert.equal(res.status, 400);
+  const body = await res.json();
+  assert.equal(body.error, 'Validation failed');
+  assert.ok(body.details.some((d: string) => d.includes('500 characters')));
 });
 
 test('Body Size Limit 413 - Rejects payload exceeding 10kb', async () => {
-  const { server, url } = await startEphemeralServer(app);
-  try {
-    // Generate a payload larger than 10kb (12,000 bytes)
-    const largePayload = { message: 'hello', junk: 'x'.repeat(12000) };
-    const res = await fetch(`${url}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(largePayload),
-    });
-    assert.equal(res.status, 413, 'Must return 413 Payload Too Large');
-    const body = await res.json();
-    assert.ok(body.error.includes('exceeds allowable limit'));
-  } finally {
-    server.close();
-  }
+  // Generate a payload larger than 10kb (12,000 bytes)
+  const largePayload = { message: 'hello', junk: 'x'.repeat(12000) };
+  const res = await fetch(`${appServer.url}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(largePayload),
+  });
+  assert.equal(res.status, 413, 'Must return 413 Payload Too Large');
+  const body = await res.json();
+  assert.ok(body.error.includes('exceeds allowable limit'));
 });
 
 test('Rate Limiter 429 - Returns 429 Too Many Requests when limit exceeded', async () => {
   // Create an isolated instance with a tiny limit of 2 requests for fast deterministic test
   const testApp = express();
+  const testStore = new MemoryStore();
   testApp.use(
     rateLimit({
       windowMs: 60000,
@@ -113,39 +132,44 @@ test('Rate Limiter 429 - Returns 429 Too Many Requests when limit exceeded', asy
       standardHeaders: true,
       legacyHeaders: false,
       message: { error: 'Too many requests. Please try again after a minute.' },
+      store: testStore,
     }),
   );
+  if (testStore.interval && typeof testStore.interval.unref === 'function') {
+    testStore.interval.unref();
+  }
   testApp.get('/test', (_req, res) => res.json({ ok: true }));
 
-  const { server, url } = await startEphemeralServer(testApp);
+  const testServer = await startEphemeralServer(testApp);
   try {
-    const res1 = await fetch(`${url}/test`);
+    const res1 = await fetch(`${testServer.url}/test`);
     assert.equal(res1.status, 200);
 
-    const res2 = await fetch(`${url}/test`);
+    const res2 = await fetch(`${testServer.url}/test`);
     assert.equal(res2.status, 200);
 
-    const res3 = await fetch(`${url}/test`);
+    const res3 = await fetch(`${testServer.url}/test`);
     assert.equal(res3.status, 429, '3rd request must trigger 429 Too Many Requests');
     const body = await res3.json();
     assert.ok(body.error.includes('Too many requests'));
   } finally {
-    server.close();
+    await testServer.close();
   }
 });
 
 test('Centralised Error Handling - Never leaks stack trace or sensitive keys', async () => {
-  // Test error handler directly with synthetic error
+  // Mock MongoDB connection failure without opening a real connection
   const testApp = express();
   testApp.get('/error-with-secret', () => {
     const sensitiveErr = new Error('Connection failed to mongodb+srv://admin:SecretPass123@cluster0.bseuo68.mongodb.net/schemesathi');
+    (sensitiveErr as any).name = 'MongoServerSelectionError';
     throw sensitiveErr;
   });
   testApp.use(errorHandler);
 
-  const { server, url } = await startEphemeralServer(testApp);
+  const testServer = await startEphemeralServer(testApp);
   try {
-    const res = await fetch(`${url}/error-with-secret`);
+    const res = await fetch(`${testServer.url}/error-with-secret`);
     assert.equal(res.status, 500);
     const body = await res.json();
 
@@ -155,7 +179,7 @@ test('Centralised Error Handling - Never leaks stack trace or sensitive keys', a
     assert.equal(JSON.stringify(body).includes('SecretPass123'), false, 'Password must never be exposed');
     assert.equal(JSON.stringify(body).includes('mongodb+srv'), false, 'MongoDB connection string must never be exposed');
   } finally {
-    server.close();
+    await testServer.close();
   }
 });
 

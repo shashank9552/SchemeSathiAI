@@ -18,9 +18,7 @@ import fs from 'node:fs';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-// Set NODE_ENV to test so server doesn't auto-listen on import
-process.env.NODE_ENV = 'test';
-import { app } from '../server/src/server.js';
+import { app } from '../server/src/app.js';
 
 interface QuestionItem {
   id: string;

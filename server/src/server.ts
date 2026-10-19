@@ -5,68 +5,39 @@ import path from "node:path";
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 dotenv.config({ path: path.resolve(process.cwd(), "../.env") });
 
-import express from "express";
-import cors from "cors";
-import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import { app } from "./app.js";
 import { config } from "./config/index.js";
-import { chatRouter } from "./routes/chat.js";
-import { errorHandler } from "./middleware/errorHandler.js";
+import { connectToDatabase, closeDatabaseConnection } from "./db/index.js";
 
-export const app = express();
 const PORT = Number(config.PORT || 5000);
-const allowedOrigin = config.CORS_ORIGIN || "http://localhost:3000";
 
-// Security headers
-app.use(helmet());
+export async function startServer() {
+  try {
+    await connectToDatabase();
+  } catch (err: any) {
+    console.error(`⚠️ Warning: MongoDB connection failed (${err?.message || err}). Server starting in degraded mode.`);
+  }
 
-// CORS restricted to configured origin
-app.use(cors({ origin: allowedOrigin }));
-
-// Strict body size limit (10kb)
-app.use(express.json({ limit: "10kb" }));
-
-// Rate limiting middleware using configured limits
-app.use(
-  rateLimit({
-    windowMs: Number(config.RATE_LIMIT_WINDOW_MS || 60000),
-    limit: Number(config.RATE_LIMIT_MAX || 30),
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many requests. Please try again after a minute." },
-  }),
-);
-
-// Health check endpoint
-app.get("/api/health", (_req, res) => {
-  res.json({
-    status: "ok",
-    service: "SchemeSathi API",
-    version: "Phase 1",
-    timestamp: new Date().toISOString(),
-    config: {
-      llmProvider: config.LLM_PROVIDER,
-      embeddingProvider: config.EMBEDDING_PROVIDER,
-      minSimilarity: config.MIN_SIMILARITY,
-      topK: config.TOP_K,
-    },
-  });
-});
-
-// Grounded RAG Chat endpoint
-app.use("/api/chat", chatRouter);
-
-// 404 handler
-app.use((_req, res) => {
-  res.status(404).json({ error: "Endpoint not found" });
-});
-
-// Centralised error handling middleware
-app.use(errorHandler);
-
-// Start server only when not running in test mode
-if (process.env.NODE_ENV !== "test") {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`SchemeSathi API running at http://localhost:${PORT}`);
   });
+
+  const shutdown = async (signal: string) => {
+    console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+    server.close(async () => {
+      await closeDatabaseConnection();
+      process.exit(0);
+    });
+  };
+
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+  return server;
 }
+
+// Start server on direct execution
+startServer().catch((err) => {
+  console.error("Fatal error during server startup:", err);
+  process.exit(1);
+});

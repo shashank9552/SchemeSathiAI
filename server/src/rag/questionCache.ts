@@ -18,10 +18,31 @@ export class QuestionCache {
   private cache = new Map<string, CacheEntry>();
   private readonly ttlMs: number;
   private readonly maxEntries: number;
+  private cleanupTimer?: NodeJS.Timeout;
 
   constructor(ttlMs = 3600 * 1000, maxEntries = 500) {
     this.ttlMs = ttlMs;
     this.maxEntries = maxEntries;
+    this.cleanupTimer = setInterval(() => this.cleanupExpired(), this.ttlMs);
+    if (this.cleanupTimer && typeof this.cleanupTimer.unref === 'function') {
+      this.cleanupTimer.unref();
+    }
+  }
+
+  public cleanupExpired(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.cache.entries()) {
+      if (now > entry.expiresAt) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  public destroy(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+    }
+    this.cache.clear();
   }
 
   public static normalizeQuestion(text: string): string {
