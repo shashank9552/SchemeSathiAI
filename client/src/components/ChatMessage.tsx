@@ -3,7 +3,7 @@
 import React from 'react';
 import { User, ShieldAlert, Sparkles, BookOpen } from 'lucide-react';
 import { CitationCard, CitationData } from './CitationCard';
-import { Language, translations } from '../i18n/translations';
+import { Language, RefusalReason, translations } from '../i18n/translations';
 
 export interface ChatMessageItem {
   id: string;
@@ -13,6 +13,7 @@ export interface ChatMessageItem {
   citations?: CitationData[];
   isError?: boolean;
   isQuota?: boolean;
+  reason?: RefusalReason;
   timestamp: Date;
 }
 
@@ -24,6 +25,22 @@ interface ChatMessageProps {
 export const ChatMessage: React.FC<ChatMessageProps> = ({ message, lang }) => {
   const isUser = message.role === 'user';
   const t = translations[lang];
+
+  const getRefusalBannerText = () => {
+    switch (message.reason) {
+      case 'below_threshold':
+        return t.refusalNoticeBelowThreshold;
+      case 'llm_not_answerable':
+        return t.refusalNoticeNotCovered;
+      case 'ungrounded_number':
+        return t.refusalNoticeUngroundedNumber;
+      case 'llm_error':
+      case 'quota_error':
+        return t.refusalNoticeError;
+      default:
+        return t.refusalNotice;
+    }
+  };
 
   if (isUser) {
     return (
@@ -59,11 +76,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, lang }) => {
                 : 'bg-white border-slate-200 text-slate-900'
             }`}
           >
-            {/* Friendly Refusal Banner if ungrounded / not in corpus */}
-            {message.answerable === false && (
+            {/* Friendly Refusal Banner matching the refusal reason */}
+            {message.answerable === false && !message.isError && (
               <div className="mb-3 flex items-center gap-2 p-2 rounded-lg bg-amber-100/70 text-amber-900 text-xs font-medium border border-amber-300/60">
                 <ShieldAlert className="w-4 h-4 text-amber-700 flex-shrink-0" />
-                <span>{t.refusalNotice}</span>
+                <span>{getRefusalBannerText()}</span>
               </div>
             )}
 
@@ -71,7 +88,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, lang }) => {
             {message.isError && (
               <div className="mb-2 flex items-center gap-2 text-rose-700 font-semibold text-xs sm:text-sm">
                 <ShieldAlert className="w-4 h-4 flex-shrink-0" />
-                <span>{message.isQuota ? t.quotaError : t.serverError}</span>
+                <span>{message.isQuota ? t.quotaError : t.genericErrorMessage}</span>
               </div>
             )}
 

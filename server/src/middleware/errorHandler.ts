@@ -67,8 +67,10 @@ export function errorHandler(
   console.error(`[SERVER_ERROR] [Status ${statusCode}]: ${sanitizeLog(rawMessage)}`);
 
   // Client response — no stack trace, no secret exposure
-  const clientResponse: { error: string; details?: string[] } = {
+  const reason = err.reason || (statusCode === 503 ? 'quota_error' : statusCode >= 500 ? 'llm_error' : undefined);
+  const clientResponse: { error: string; details?: string[]; reason?: string } = {
     error: statusCode >= 500 ? 'Internal server error.' : rawMessage,
+    ...(reason ? { reason } : {}),
   };
 
   if (err.details && Array.isArray(err.details)) {

@@ -44,6 +44,7 @@ chatRouter.post('/', async (req, res, next) => {
           userLang === 'hi'
             ? 'सेवा पर इस समय अत्यधिक लोड है। कृपया कुछ समय बाद पुनः प्रयास करें।'
             : 'The service is currently experiencing high demand. Please try again shortly.',
+        reason: 'quota_error',
       });
     }
 

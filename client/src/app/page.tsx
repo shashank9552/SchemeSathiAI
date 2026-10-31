@@ -61,9 +61,10 @@ export default function Home() {
         const quotaMsg: ChatMessageItem = {
           id: `asst-${Date.now()}`,
           role: 'assistant',
-          content: errorData.error || t.quotaError,
+          content: t.genericErrorMessage,
           isError: true,
           isQuota: true,
+          reason: 'quota_error',
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, quotaMsg]);
@@ -72,11 +73,14 @@ export default function Home() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        const isQuota = errorData.reason === 'quota_error';
         const errorMsg: ChatMessageItem = {
           id: `asst-${Date.now()}`,
           role: 'assistant',
-          content: errorData.error || t.serverError,
+          content: t.genericErrorMessage,
           isError: true,
+          isQuota,
+          reason: errorData.reason || 'llm_error',
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, errorMsg]);
@@ -84,12 +88,24 @@ export default function Home() {
       }
 
       const data = await response.json();
+      let displayContent = data.answer || '';
+      if (!data.answerable) {
+        if (data.reason === 'below_threshold') {
+          displayContent = t.belowThresholdMessage;
+        } else if (data.reason === 'llm_not_answerable') {
+          displayContent = t.notCoveredMessage;
+        } else if (data.reason === 'llm_error' || data.reason === 'quota_error') {
+          displayContent = t.genericErrorMessage;
+        }
+      }
+
       const assistantMsg: ChatMessageItem = {
         id: `asst-${Date.now()}`,
         role: 'assistant',
-        content: data.answer || '',
+        content: displayContent,
         answerable: data.answerable,
         citations: data.citations || [],
+        reason: data.reason,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
@@ -97,8 +113,9 @@ export default function Home() {
       const fallbackMsg: ChatMessageItem = {
         id: `asst-${Date.now()}`,
         role: 'assistant',
-        content: t.serverError,
+        content: t.genericErrorMessage,
         isError: true,
+        reason: 'llm_error',
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, fallbackMsg]);

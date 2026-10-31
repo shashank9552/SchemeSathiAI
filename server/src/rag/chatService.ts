@@ -52,11 +52,36 @@ export class ChatService {
     let chunks: any[] = [];
     let embedMs = 0;
     let searchMs = 0;
+    let translationMs = 0;
     try {
       const retResult = await this.retriever.retrieveWithTiming(message, config.TOP_K);
       chunks = retResult.chunks;
       embedMs = retResult.embedMs;
       searchMs = retResult.searchMs;
+
+      // Multilingual fallback: if Hindi query score is below threshold and fallback is enabled, translate to English & re-embed
+      let initialTopScore = chunks.length > 0 ? chunks[0].score : 0;
+      if (lang === 'hi' && initialTopScore < config.MIN_SIMILARITY && config.ENABLE_HINDI_TRANSLATION_FALLBACK) {
+        const transStart = Date.now();
+        try {
+          const translationPrompt = `Translate the following citizen query from Hindi to English for information retrieval from an official government welfare booklet. Output ONLY the plain English translation, with no explanation or punctuation:\n\n${message}`;
+          const translatedQuery = (await this.llmProvider.generateResponse(translationPrompt, 'You are an accurate translator.')).trim();
+          translationMs = Date.now() - transStart;
+
+          if (translatedQuery) {
+            const fallbackResult = await this.retriever.retrieveWithTiming(translatedQuery, config.TOP_K);
+            const fallbackTopScore = fallbackResult.chunks.length > 0 ? fallbackResult.chunks[0].score : 0;
+            // Use the better result
+            if (fallbackTopScore > initialTopScore) {
+              chunks = fallbackResult.chunks;
+              embedMs += fallbackResult.embedMs;
+              searchMs += fallbackResult.searchMs;
+            }
+          }
+        } catch (transErr: any) {
+          console.warn(`[HINDI_TRANSLATION_FALLBACK_WARN] queryHash=${queryHash}: ${transErr.message}`);
+        }
+      }
     } catch (retErr: any) {
       const errMsg = retErr.message || String(retErr);
       if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota')) {
@@ -73,7 +98,7 @@ export class ChatService {
     if (chunks.length === 0 || topScore < config.MIN_SIMILARITY) {
       const latencyMs = Date.now() - startTime;
       console.log(
-        `[CHAT_REQUEST] queryHash=${queryHash} lang=${lang} topScore=${topScore.toFixed(4)} threshold=${config.MIN_SIMILARITY} decision=refused_first_gate_vector usedChunks=0 timing={lang:${langDetectMs}ms,embed:${embedMs}ms,vectorSearch:${searchMs}ms} latencyMs=${latencyMs}ms`
+        `[CHAT_REQUEST] queryHash=${queryHash} lang=${lang} topScore=${topScore.toFixed(4)} threshold=${config.MIN_SIMILARITY} decision=refused_first_gate_vector reason=below_threshold usedChunks=0 timing={lang:${langDetectMs}ms,embed:${embedMs}ms,vectorSearch:${searchMs}ms,trans:${translationMs}ms} latencyMs=${latencyMs}ms`
       );
 
       const response: ChatResponse = {
@@ -82,10 +107,12 @@ export class ChatService {
         latencyMs,
         answerable: false,
         topScore,
+        reason: 'below_threshold',
         timings: {
           langDetectMs,
           embedMs,
           vectorSearchMs: searchMs,
+          translationMs: translationMs > 0 ? translationMs : undefined,
           totalMs: latencyMs,
         },
       };
@@ -118,26 +145,32 @@ export class ChatService {
     } catch (llmErr: any) {
       const errMsg = llmErr.message || String(llmErr);
       if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota')) {
-        console.warn(`[CHAT_QUOTA_EXCEEDED] queryHash=${queryHash} - returning 503`);
+        console.warn(`[CHAT_QUOTA_EXCEEDED] queryHash=${queryHash} reason=quota_error - returning 503`);
         const quotaErr: any = new Error(QUOTA_ERROR_MESSAGES[lang]);
         quotaErr.status = 503;
+        quotaErr.reason = 'quota_error';
         throw quotaErr;
       }
 
       const latencyMs = Date.now() - startTime;
       console.error(
-        `[CHAT_REQUEST_ERROR] LLM generation failed for queryHash=${queryHash}: ${errMsg} timing={lang:${langDetectMs}ms,embed:${embedMs}ms,vectorSearch:${searchMs}ms,llm:${llmMs}ms} latencyMs=${latencyMs}ms`
+        `[CHAT_REQUEST_ERROR] LLM generation failed for queryHash=${queryHash}: ${errMsg} reason=llm_error timing={lang:${langDetectMs}ms,embed:${embedMs}ms,vectorSearch:${searchMs}ms,llm:${llmMs}ms} latencyMs=${latencyMs}ms`
       );
       return {
-        answer: REFUSAL_MESSAGES[lang],
+        answer:
+          lang === 'hi'
+            ? 'कुछ गलत हो गया, कृपया पुनः प्रयास करें।'
+            : 'Something went wrong, please try again.',
         citations: [],
         latencyMs,
         answerable: false,
         topScore,
+        reason: 'llm_error',
         timings: {
           langDetectMs,
           embedMs,
           vectorSearchMs: searchMs,
+          translationMs: translationMs > 0 ? translationMs : undefined,
           llmMs,
           retries,
           backoffMs,
@@ -153,7 +186,7 @@ export class ChatService {
     if (!parsedPayload || !parsedPayload.answerable) {
       const latencyMs = Date.now() - startTime;
       console.log(
-        `[CHAT_REQUEST] queryHash=${queryHash} lang=${lang} topScore=${topScore.toFixed(4)} decision=refused_second_gate_llm usedChunks=0 timing={lang:${langDetectMs}ms,embed:${embedMs}ms,vectorSearch:${searchMs}ms,llm:${llmMs}ms,retries:${retries},backoff:${backoffMs}ms} latencyMs=${latencyMs}ms`
+        `[CHAT_REQUEST] queryHash=${queryHash} lang=${lang} topScore=${topScore.toFixed(4)} decision=refused_second_gate_llm reason=llm_not_answerable usedChunks=0 timing={lang:${langDetectMs}ms,embed:${embedMs}ms,vectorSearch:${searchMs}ms,llm:${llmMs}ms,retries:${retries},backoff:${backoffMs}ms} latencyMs=${latencyMs}ms`
       );
 
       const response: ChatResponse = {
@@ -162,10 +195,12 @@ export class ChatService {
         latencyMs,
         answerable: false,
         topScore,
+        reason: 'llm_not_answerable',
         timings: {
           langDetectMs,
           embedMs,
           vectorSearchMs: searchMs,
+          translationMs: translationMs > 0 ? translationMs : undefined,
           llmMs,
           retries,
           backoffMs,
@@ -187,11 +222,12 @@ export class ChatService {
     // Fallback: if answerable is true but LLM omitted chunk IDs, use top-1 retrieved chunk
     const finalChunkIds = validatedIds.length > 0 ? validatedIds : [chunks[0].id];
 
-    // 5. Faithfulness Guard: Verify every number and percentage against used chunks
+    // 5. Faithfulness Guard: Verify every number and percentage against used chunks & user question
     const usedChunks = finalChunkIds.map((id) => validChunkMap.get(id)!).filter(Boolean);
     const faithfulness = FaithfulnessGuard.verifyFaithfulness(
       parsedPayload.answer,
-      usedChunks.map((c) => c.text)
+      usedChunks.map((c) => c.text),
+      message
     );
 
     if (!faithfulness.faithful) {
@@ -199,7 +235,7 @@ export class ChatService {
       console.warn(
         `[FaithfulnessGuard] ungrounded_number detected: [${faithfulness.ungroundedNumbers.join(
           ', '
-        )}] queryHash=${queryHash} lang=${lang} decision=refused_faithfulness_guard latencyMs=${latencyMs}ms`
+        )}] queryHash=${queryHash} lang=${lang} decision=refused_faithfulness_guard reason=ungrounded_number latencyMs=${latencyMs}ms`
       );
 
       const response: ChatResponse = {
@@ -208,11 +244,13 @@ export class ChatService {
         latencyMs,
         answerable: false,
         topScore,
+        reason: 'ungrounded_number',
         faithfulnessChecked: true,
         timings: {
           langDetectMs,
           embedMs,
           vectorSearchMs: searchMs,
+          translationMs: translationMs > 0 ? translationMs : undefined,
           llmMs,
           retries,
           backoffMs,

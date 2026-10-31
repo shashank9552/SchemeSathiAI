@@ -52,15 +52,20 @@ export class FaithfulnessGuard {
 
   /**
    * Verifies that every extracted number and percentage from the answer
-   * is present in the concatenated text of the used chunks.
+   * is present in the concatenated text of the used chunks or the user's question.
    */
-  public static verifyFaithfulness(answerText: string, chunkTexts: string[]): FaithfulnessCheckResult {
+  public static verifyFaithfulness(
+    answerText: string,
+    chunkTexts: string[],
+    userQuestion?: string
+  ): FaithfulnessCheckResult {
     const extracted = this.extractNumbersAndPercentages(answerText);
     if (extracted.length === 0) {
       return { faithful: true, ungroundedNumbers: [] };
     }
 
     const combinedChunksAscii = this.toAsciiDigits(chunkTexts.join(' ')).toLowerCase();
+    const userQuestionAscii = userQuestion ? this.toAsciiDigits(userQuestion).toLowerCase() : '';
     const ungroundedNumbers: string[] = [];
 
     for (const token of extracted) {
@@ -79,19 +84,19 @@ export class FaithfulnessGuard {
       let matched = false;
 
       if (isPercent) {
-        // Look for "15%", "15 %", "15 percent", or "15 प्रतिशत" in chunks
+        // Look for "15%", "15 %", "15 percent", or "15 प्रतिशत" in chunks or user question
         for (const cand of candidates) {
           const percentRegex = new RegExp(`(?:\\b|[^0-9.])${cand.replace('.', '\\.')}\\s*(?:%|percent|प्रतिशत)`, 'i');
-          if (percentRegex.test(combinedChunksAscii)) {
+          if (percentRegex.test(combinedChunksAscii) || (userQuestionAscii && percentRegex.test(userQuestionAscii))) {
             matched = true;
             break;
           }
         }
       } else {
-        // Look for standalone number token (e.g., "18", "50", "1.00", "1")
+        // Look for standalone number token (e.g., "18", "50", "1.00", "1", "22") in chunks or user question
         for (const cand of candidates) {
           const numberRegex = new RegExp(`(?:\\b|[^0-9.])${cand.replace('.', '\\.')}(?:\\b|[^0-9.])`, 'i');
-          if (numberRegex.test(combinedChunksAscii)) {
+          if (numberRegex.test(combinedChunksAscii) || (userQuestionAscii && numberRegex.test(userQuestionAscii))) {
             matched = true;
             break;
           }

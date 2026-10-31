@@ -75,6 +75,11 @@ export class QuestionCache {
   }
 
   public set(language: string, question: string, response: ChatResponse): void {
+    // Never cache transient LLM errors or quota exceeded failures
+    if (response.reason === 'llm_error' || response.reason === 'quota_error') {
+      return;
+    }
+
     if (this.cache.size >= this.maxEntries) {
       // Evict oldest entry
       const firstKey = this.cache.keys().next().value;

@@ -97,3 +97,25 @@ test('FaithfulnessGuard - ignores list numbering prefixes like "1. ", "2. "', ()
   assert.equal(result.faithful, true);
   assert.equal(result.ungroundedNumbers.length, 0);
 });
+
+test('FaithfulnessGuard - allows numbers appearing in user question (e.g. 22 in "I am 22")', () => {
+  const userQuestion = 'I am 22 and want to start my own small business. Which scheme can help?';
+  const answer = 'As you are 22 years old, you can apply for PMEGP since the minimum eligibility is 18 years.';
+  const chunkText = ['Any individual, above 18 years of age can apply for PMEGP.'];
+
+  const result = FaithfulnessGuard.verifyFaithfulness(answer, chunkText, userQuestion);
+  assert.equal(result.faithful, true, 'Number 22 from user question must be allowed');
+  assert.equal(result.ungroundedNumbers.length, 0);
+});
+
+test('FaithfulnessGuard - still flags ungrounded numbers neither in chunk nor in user question', () => {
+  const userQuestion = 'I am 22 and want to start my own small business. Which scheme can help?';
+  // 15% is not in the chunk, nor in the user question
+  const answer = 'As you are 22 years old, you can apply for PMEGP and get a 15% special grant.';
+  const chunkText = ['Any individual, above 18 years of age can apply for PMEGP.'];
+
+  const result = FaithfulnessGuard.verifyFaithfulness(answer, chunkText, userQuestion);
+  assert.equal(result.faithful, false, '15% must be flagged as ungrounded');
+  assert.ok(result.ungroundedNumbers.includes('15%'));
+});
+

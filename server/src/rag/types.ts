@@ -31,11 +31,19 @@ export interface StageTimings {
   langDetectMs: number;
   embedMs: number;
   vectorSearchMs: number;
+  translationMs?: number;
   llmMs?: number;
   retries?: number;
   backoffMs?: number;
   totalMs: number;
 }
+
+export type RefusalReason =
+  | 'below_threshold'
+  | 'llm_not_answerable'
+  | 'ungrounded_number'
+  | 'llm_error'
+  | 'quota_error';
 
 export interface ChatResponse {
   answer: string;
@@ -43,8 +51,10 @@ export interface ChatResponse {
   latencyMs: number;
   answerable: boolean;
   topScore?: number;
+  reason?: RefusalReason;
   usedChunkIds?: string[];
   timings?: StageTimings;
   cached?: boolean;
   faithfulnessChecked?: boolean;
 }
+

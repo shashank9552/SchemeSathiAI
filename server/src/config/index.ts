@@ -44,6 +44,9 @@ const envSchema = z.object({
 
   // Quality gate
   MAX_GARBLE_RATE: z.coerce.number().default(5.0),
+
+  // Multilingual query translation fallback (off by default)
+  ENABLE_HINDI_TRANSLATION_FALLBACK: z.coerce.boolean().default(false),
 });
 
 const parsed = envSchema.safeParse(process.env);
