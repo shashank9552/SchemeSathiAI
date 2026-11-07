@@ -22,6 +22,7 @@ out/
 # Processed data cache & logs (Keep directory tracked via .gitkeep)
 data/processed/*
 !data/processed/.gitkeep
+data/backup-*/
 
 # Ensure raw_pdfs manifest and schemas are explicitly tracked
 !data/raw_pdfs/manifest.json

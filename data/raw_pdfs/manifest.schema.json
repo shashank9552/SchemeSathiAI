@@ -34,6 +34,10 @@
           "sourceUrl": {
             "type": "string",
             "description": "Official government portal URL where PDF was downloaded"
+          },
+          "outlinePath": {
+            "type": "string",
+            "description": "Path to canonical outline JSON file relative to workspace root"
           }
         }
       }

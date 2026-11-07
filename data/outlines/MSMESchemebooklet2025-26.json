@@ -1,0 +1,241 @@
+[
+  {
+    "schemeName": "Cover Page",
+    "startPage": 1,
+    "endPage": 1,
+    "index": false,
+    "reason": "Front cover"
+  },
+  {
+    "schemeName": "Ministry of MSME Overview",
+    "startPage": 2,
+    "endPage": 2,
+    "index": false,
+    "reason": "Minister pull quotes (preface)"
+  },
+  {
+    "schemeName": "Table of Contents",
+    "startPage": 3,
+    "endPage": 4,
+    "index": false,
+    "reason": "Table of Contents"
+  },
+  {
+    "schemeName": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "startPage": 5,
+    "endPage": 8,
+    "index": true,
+    "titleOnPage": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "tocPage": 3,
+    "subSchemes": [
+      {
+        "subScheme": "2nd Loan for up-gradation",
+        "startPage": 7,
+        "endPage": 8,
+        "titleOnPage": "1.1) 2nd Loan for up-gradation of the existing PMEGP/REGP/ MUDRA units",
+        "tocPage": 5
+      }
+    ]
+  },
+  {
+    "schemeName": "Credit Guarantee Scheme for Micro & Small Enterprises (CGTMSE)",
+    "startPage": 9,
+    "endPage": 10,
+    "index": true,
+    "titleOnPage": "Credit Guarantee Scheme for Micro & Small Enterprises(CGTMSE)",
+    "tocPage": 7
+  },
+  {
+    "schemeName": "Micro & Small Enterprises Cluster Development Programme (MSE-CDP) Scheme",
+    "startPage": 11,
+    "endPage": 12,
+    "index": true,
+    "titleOnPage": "MICRO & SMALL ENTERPRISES CLUSTER DEVELOPMENT PROGRAMME (MSE-CDP)",
+    "tocPage": 9
+  },
+  {
+    "schemeName": "Scheme of Fund for Regeneration of Traditional Industries (SFURTI)",
+    "startPage": 13,
+    "endPage": 14,
+    "index": true,
+    "titleOnPage": "Scheme of Fund for Regeneration of Traditional Industries (SFURTI)",
+    "tocPage": 11
+  },
+  {
+    "schemeName": "Entrepreneurship and Skill Development Programme (ESDP) Scheme",
+    "startPage": 15,
+    "endPage": 16,
+    "index": true,
+    "titleOnPage": "ENTREPRENEURSHIP AND SKILL DEVELOPMENT PROGRAMME (ESDP) SCHEME",
+    "tocPage": 13
+  },
+  {
+    "schemeName": "Assistance to Training Institutions (ATI) Scheme",
+    "startPage": 17,
+    "endPage": 17,
+    "index": true,
+    "titleOnPage": "ASSISTANCE TO TRAINING INSTITUTIONS (ATI) SCHEME",
+    "tocPage": 15
+  },
+  {
+    "schemeName": "Coir Vikas Yojana (CVY)",
+    "startPage": 18,
+    "endPage": 20,
+    "index": true,
+    "titleOnPage": "COIR VIKAS YOJANA (CVY)",
+    "tocPage": 16
+  },
+  {
+    "schemeName": "Procurement and Marketing Support (PMS) Scheme",
+    "startPage": 21,
+    "endPage": 22,
+    "index": true,
+    "titleOnPage": "PROCUREMENT AND MARKETING SUPPORT (PMS) SCHEME",
+    "tocPage": 19
+  },
+  {
+    "schemeName": "International Cooperation (IC) Scheme",
+    "startPage": 23,
+    "endPage": 25,
+    "index": true,
+    "titleOnPage": "INTERNATIONAL COOPERATION (IC) SCHEME",
+    "tocPage": 21
+  },
+  {
+    "schemeName": "National SC-ST Hub Scheme",
+    "startPage": 26,
+    "endPage": 27,
+    "index": true,
+    "titleOnPage": "NATIONAL SC-ST HUB SCHEME",
+    "tocPage": 24
+  },
+  {
+    "schemeName": "Scheme for Promotion of Innovation, Rural Industry & Entrepreneurship (ASPIRE)",
+    "startPage": 28,
+    "endPage": 29,
+    "index": true,
+    "titleOnPage": "SCHEME FOR PROMOTION OF INNOVATION, RURAL INDUSTRY & ENTREPRENEURSHIP (ASPIRE)",
+    "tocPage": 26
+  },
+  {
+    "schemeName": "Khadi Gramodyog Vikas Yojana",
+    "startPage": 30,
+    "endPage": 32,
+    "index": true,
+    "titleOnPage": "KHADI & GRAMODYOG VIKAS YOJANA",
+    "tocPage": 28
+  },
+  {
+    "schemeName": "Promotion of MSMEs in N.E. Region and Sikkim",
+    "startPage": 33,
+    "endPage": 34,
+    "index": true,
+    "titleOnPage": "PROMOTION OF MSMES IN N.E. REGION AND SIKKIM",
+    "tocPage": 31
+  },
+  {
+    "schemeName": "Section Divider",
+    "startPage": 35,
+    "endPage": 35,
+    "index": false,
+    "reason": "Section divider / blank page"
+  },
+  {
+    "schemeName": "PM Vishwakarma Scheme",
+    "startPage": 36,
+    "endPage": 37,
+    "index": true,
+    "titleOnPage": "PM VISHWAKARMA SCHEME",
+    "tocPage": 34
+  },
+  {
+    "schemeName": "Tool Rooms and Technical Institutions",
+    "startPage": 38,
+    "endPage": 39,
+    "index": true,
+    "titleOnPage": "TOOL ROOMS AND TECHNICAL INSTITUTIONS",
+    "tocPage": 36
+  },
+  {
+    "schemeName": "MSME Champions Scheme",
+    "startPage": 40,
+    "endPage": 49,
+    "index": true,
+    "titleOnPage": "MSME CHAMPIONS SCHEME",
+    "tocPage": 38,
+    "subSchemes": [
+      {
+        "subScheme": "MSME Champions Scheme Overview",
+        "startPage": 40,
+        "endPage": 40,
+        "titleOnPage": "MSME CHAMPIONS SCHEME",
+        "tocPage": 38
+      },
+      {
+        "subScheme": "MSME Sustainable (ZED) Certification",
+        "startPage": 41,
+        "endPage": 43,
+        "titleOnPage": "1). MSME Sustainable (ZED) Certification Scheme",
+        "tocPage": 39
+      },
+      {
+        "subScheme": "MSME Innovative (Incubation, IPR and Design)",
+        "startPage": 44,
+        "endPage": 46,
+        "titleOnPage": "2). MSME Innovative (Incubation, IPR and Design)",
+        "tocPage": 42
+      },
+      {
+        "subScheme": "MSME Competitive (Lean) Scheme",
+        "startPage": 47,
+        "endPage": 49,
+        "titleOnPage": "3). MSME Competitive (Lean) Scheme",
+        "tocPage": 45
+      }
+    ]
+  },
+  {
+    "schemeName": "Self Reliant India (SRI) Fund",
+    "startPage": 50,
+    "endPage": 51,
+    "index": true,
+    "titleOnPage": "SELF RELIANT INDIA (SRI) FUND",
+    "tocPage": 48
+  },
+  {
+    "schemeName": "Raising and Accelerating MSME Performance (RAMP)",
+    "startPage": 52,
+    "endPage": 53,
+    "index": true,
+    "titleOnPage": "Raising and Accelerating MSME Performance (RAMP)",
+    "tocPage": 50
+  },
+  {
+    "schemeName": "Section Divider - Important Contact Numbers",
+    "startPage": 54,
+    "endPage": 54,
+    "index": false,
+    "reason": "Section divider"
+  },
+  {
+    "schemeName": "Blank Page",
+    "startPage": 55,
+    "endPage": 55,
+    "index": false,
+    "reason": "Blank page with running footer only"
+  },
+  {
+    "schemeName": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+    "startPage": 56,
+    "endPage": 59,
+    "index": false,
+    "reason": "contact table needs column-aware extraction"
+  },
+  {
+    "schemeName": "End Pages",
+    "startPage": 60,
+    "endPage": 61,
+    "index": false,
+    "reason": "Back cover"
+  }
+]

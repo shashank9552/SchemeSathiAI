@@ -24,6 +24,10 @@
       {
         "type": "filter",
         "path": "sourceFile"
+      },
+      {
+        "type": "filter",
+        "path": "ingestRunId"
       }
     ]
   }

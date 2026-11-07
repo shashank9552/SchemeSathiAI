@@ -42,6 +42,9 @@ const envSchema = z.object({
   NUM_CANDIDATES: z.coerce.number().default(100),
   MIN_SIMILARITY: z.coerce.number().default(0.65),
 
+  // Active Ingestion Run ID (optional filter for vector search)
+  ACTIVE_INGEST_RUN: z.string().optional(),
+
   // Quality gate
   MAX_GARBLE_RATE: z.coerce.number().default(5.0),
 

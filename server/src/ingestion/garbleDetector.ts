@@ -20,9 +20,11 @@ export interface GarbleAnalysis {
     replacementGlyphs: number;      // \uFFFD
     danglingHalant: number;         // Halant without valid consonant
     legacyFontArtifacts: number;    // Legacy KrutiDev font artifacts (¿, ¡)
+    foreignScriptChars: number;     // Cyrillic / foreign characters outside Latin, Devanagari, digits & punctuation
   };
+  foreignCharsFound?: string[];
   isGarbled: boolean;
-  quarantineReason?: 'under_100_characters' | 'garble_rate_exceeded' | 'scanned_page' | 'failed_englishness_check';
+  quarantineReason?: 'under_100_characters' | 'garble_rate_exceeded' | 'scanned_page' | 'failed_englishness_check' | 'foreign_script_detected';
 }
 
 const COMMON_ENGLISH_STOPWORDS = new Set([
@@ -64,6 +66,14 @@ export function analyzeGarble(text: string, maxGarbleRate = 5.0): GarbleAnalysis
   // 6. Signature: Legacy font artifacts (KrutiDev/Chanakya specific characters like ¿, ¡)
   const legacyFontArtifacts = (text.match(/[¿¡]/g) || []).length;
 
+  // 7. Signature: Foreign / Disallowed characters outside Latin, Devanagari, digits & punctuation
+  // Allows Latin-1 Supplement (\u00A0-\u00FF: °, ×, ², ½, accented Latin letters),
+  // General Punctuation (\u2000-\u206F: curly quotes, bullets, dashes),
+  // Currency Symbols (\u20A0-\u20CF: ₹), Devanagari (\u0900-\u097F), and standard ASCII.
+  // Flags Cyrillic (\u0400-\u052F), Greek (\u0370-\u03FF), CJK (\u4E00-\u9FFF), Arabic (\u0600-\u06FF), Hebrew (\u0590-\u05FF), and Private-Use (\uE000-\uF8FF).
+  const foreignMatches = text.match(/[^\u0000-\u007F\u00A0-\u00FF\u0900-\u097F\u2000-\u206F\u20A0-\u20CF]/g) || [];
+  const foreignScriptChars = foreignMatches.length;
+
   const signatures = {
     sequenceMpa,
     detachedMatras,
@@ -71,10 +81,11 @@ export function analyzeGarble(text: string, maxGarbleRate = 5.0): GarbleAnalysis
     replacementGlyphs,
     danglingHalant,
     legacyFontArtifacts,
+    foreignScriptChars,
   };
 
   const garbleCount =
-    sequenceMpa + detachedMatras + orphanMatras + replacementGlyphs + danglingHalant + legacyFontArtifacts;
+    sequenceMpa + detachedMatras + orphanMatras + replacementGlyphs + danglingHalant + legacyFontArtifacts + foreignScriptChars;
   const garbleRatePer1000 = totalChars > 0 ? (garbleCount / totalChars) * 1000 : 0;
 
   // English-ness check: detect KrutiDev / legacy Indic fonts disguised as Latin ASCII
@@ -82,6 +93,8 @@ export function analyzeGarble(text: string, maxGarbleRate = 5.0): GarbleAnalysis
   const stopwordMatches = words.filter((w) => COMMON_ENGLISH_STOPWORDS.has(w)).length;
   const englishStopwordRatio = words.length > 0 ? stopwordMatches / words.length : 0;
 
+  // Quarantine Reason evaluation in priority order:
+  // Earlier structural and rate-based reasons are preserved and never overwritten by foreign_script_detected.
   let quarantineReason: GarbleAnalysis['quarantineReason'];
   if (totalChars === 0) {
     quarantineReason = 'scanned_page';
@@ -93,6 +106,8 @@ export function analyzeGarble(text: string, maxGarbleRate = 5.0): GarbleAnalysis
     // Page is predominantly Latin letters but has almost zero English stopwords:
     // It is a KrutiDev / legacy font stream representing Hindi text with English keyboard codes!
     quarantineReason = 'failed_englishness_check';
+  } else if (foreignScriptChars > 0) {
+    quarantineReason = 'foreign_script_detected';
   }
 
   const isGarbled = Boolean(quarantineReason);

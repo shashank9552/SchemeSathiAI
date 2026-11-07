@@ -3,7 +3,7 @@
  * 
  * Cleans extracted PDF page text:
  * 1. Strips headers and footers that repeat across pages (e.g. MSME SCHEMES boilerplate, page numbers).
- * 2. Strips publisher URLs (e.g., https://..., www.msme.gov.in).
+ * 2. Strips repeating footer URLs (e.g. www.msme.gov.in) while preserving scheme-specific application URLs.
  * 3. Normalizes whitespace and removes control characters.
  */
 
@@ -72,14 +72,23 @@ export class TextCleaner {
   }
 
   /**
-   * Strips publisher URLs from text
+   * Normalizes spacing glitches from PDF extraction:
+   * - multi-part dates: "20. 09. 2022" -> "20.09.2022"
+   * - decimal numbers: "1. 00 lakh" -> "1.00 lakh"
+   * - URL domain spacing: "innovative. msme. gov. in" -> "innovative.msme.gov.in"
+   * Does NOT touch standard prose like "...drainage etc. in new/existing..."
    */
-  public static stripPublisherUrls(text: string): string {
-    // Strips http://, https://, and www. links
+  public static normalizeSpacingGlitches(text: string): string {
     return text
-      .replace(/https?:\/\/[^\s]+/gi, '')
-      .replace(/\bwww\.[a-z0-9\-]+(\.[a-z0-9\-]+)+[^\s]*/gi, '')
-      .replace(/\s{2,}/g, ' ');
+      // 1. Fix multi-part dates first: "20. 09. 2022" -> "20.09.2022"
+      .replace(/(\b\d{1,2})\.\s*(\d{1,2})\.\s*(\d{2,4}\b)/g, '$1.$2.$3')
+      // 2. Fix decimal numbers across space or newline: "1. 00" -> "1.00", "1.\n00" -> "1.00"
+      .replace(/(\b\d+)\.\s+(\d+\b)/g, '$1.$2')
+      // 3. Fix URL domain spacing: "innovative. msme. gov. in" -> "innovative.msme.gov.in"
+      .replace(/(\b(?:https?:\/\/|www\.)[a-z0-9\-]+)\.\s+([a-z0-9\-]+)/gi, '$1.$2')
+      .replace(/([a-z0-9\-]+)\.\s+(msme|gov|nic)\.\s*(in|gov\.in)\b/gi, '$1.$2.$3')
+      .replace(/(https?:\/\/[^\s]+)\.\s+(gov\.in|in)\b/gi, '$1.$2')
+      .replace(/([a-z0-9\-]+)\.\s+msme\.\s+gov\.\s+in\b/gi, '$1.msme.gov.in');
   }
 
   /**
@@ -103,11 +112,8 @@ export class TextCleaner {
         continue;
       }
 
-      // 3. Strip publisher URLs within the line
-      const urlStripped = this.stripPublisherUrls(trimmed);
-      if (urlStripped.trim().length > 0) {
-        cleanedLines.push(urlStripped.trim());
-      }
+      // 3. Keep line with scheme URLs intact (do not strip publisher URLs)
+      cleanedLines.push(trimmed);
     }
 
     // Join cleaned lines and normalize multiple consecutive blank lines
@@ -116,6 +122,8 @@ export class TextCleaner {
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '') // remove ASCII control characters
       .replace(/\n{3,}/g, '\n\n')
       .trim();
+
+    cleanedText = this.normalizeSpacingGlitches(cleanedText);
 
     return this.formatStructuredTables(cleanedText);
   }
@@ -156,7 +164,9 @@ export class TextCleaner {
     if (/^[-–—]\s*\d+\s*[-–—]$/.test(l)) return true;
 
     // Repeating MSME booklet footer pattern: "MSME SCHEMES For more information and regular updates, visit: ..."
-    if (l.includes('msme schemes') && l.includes('for more information')) return true;
+    if (l.includes('msme schemes') && (l.includes('for more information') || l.includes('www.msme.gov.in'))) return true;
+    if (l.includes('for more information') && (l.includes('www.msme.gov.in') || l.includes('regular updates'))) return true;
+    if (/^msme schemes(\s+\d+)?$/i.test(l)) return true;
 
     // Coaching / compilation headers
     if (l.startsWith('vision ias') && l.includes('delhi')) return true;

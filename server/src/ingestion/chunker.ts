@@ -2,6 +2,8 @@
  * SchemeSathi - Heading-Aware Document Chunker (Refined)
  */
 
+export const CHUNKER_VERSION = '2.0.0';
+
 export interface ChunkMetadata {
   schemeName: string;
   sectionTitle: string;
@@ -13,6 +15,7 @@ export interface ChunkMetadata {
   language: string;
   chunkIndex: number;
   isTable: boolean;
+  kind?: 'scheme' | 'directory';
 }
 
 export interface GeneratedChunk {
@@ -25,6 +28,14 @@ export interface PageContent {
   text: string;
 }
 
+export interface OutlineEntry {
+  schemeName: string;
+  subScheme?: string;
+  startPage: number;
+  endPage: number;
+  kind?: 'scheme' | 'directory';
+}
+
 export interface DocumentInfo {
   sourceFile: string;
   documentTitle: string;
@@ -32,6 +43,7 @@ export interface DocumentInfo {
   category: string;
   level: string;
   language: string;
+  outline?: OutlineEntry[];
 }
 
 export class DocumentChunker {
@@ -53,11 +65,41 @@ export class DocumentChunker {
     for (const page of pages) {
       if (!page.text || page.text.trim().length === 0) continue;
 
+      let activeSchemeForPage = currentSchemeHeading;
+      let activeSubForPage = currentSubHeading;
+      let activeSectionForPage = currentSectionTitle;
+
+      let activeKindForPage: 'scheme' | 'directory' = 'scheme';
+
+      if (docInfo.outline && docInfo.outline.length > 0) {
+        const entry = docInfo.outline.find(
+          (o) => page.pageNumber >= o.startPage && page.pageNumber <= o.endPage
+        );
+        if (entry) {
+          activeSchemeForPage = entry.schemeName;
+          currentSchemeHeading = entry.schemeName;
+          if (entry.kind) {
+            activeKindForPage = entry.kind;
+          } else if (entry.schemeName.toLowerCase().includes('directory')) {
+            activeKindForPage = 'directory';
+          }
+          if (entry.subScheme) {
+            activeSubForPage = entry.subScheme;
+            activeSectionForPage = entry.subScheme;
+            currentSubHeading = entry.subScheme;
+            currentSectionTitle = entry.subScheme;
+          } else {
+            activeSubForPage = '';
+            currentSubHeading = '';
+          }
+        }
+      }
+
       // Extract sections for this page
-      const sections = this.splitPageIntoSections(page.text, currentSchemeHeading, currentSubHeading, currentSectionTitle);
+      const sections = this.splitPageIntoSections(page.text, activeSchemeForPage, activeSubForPage, activeSectionForPage);
 
       for (const section of sections) {
-        if (section.parentScheme) {
+        if (section.parentScheme && (!docInfo.outline || docInfo.outline.length === 0)) {
           currentSchemeHeading = section.parentScheme;
         }
         if (section.subHeading !== undefined) {
@@ -68,6 +110,9 @@ export class DocumentChunker {
         }
 
         const isTable = Boolean(section.isTable || section.content.includes('|---|') || section.content.includes('Guarantee Coverage where'));
+
+        const isDirectory = activeKindForPage === 'directory' || currentSchemeHeading.toLowerCase().includes('directory');
+        const chunkKind: 'scheme' | 'directory' = isDirectory ? 'directory' : 'scheme';
 
         // If it's a table, keep rows together without splitting inside table
         if (isTable) {
@@ -85,6 +130,7 @@ export class DocumentChunker {
               language: docInfo.language,
               chunkIndex: chunkGlobalIndex++,
               isTable: true,
+              kind: chunkKind,
             },
           });
           continue;
@@ -115,13 +161,53 @@ export class DocumentChunker {
               language: docInfo.language,
               chunkIndex: chunkGlobalIndex++,
               isTable: false,
+              kind: chunkKind,
             },
           });
         }
       }
     }
 
-    return chunks;
+    // Enforce minimum chunk length (200 characters of body text): merge short chunks into the following chunk
+    const mergedChunks: GeneratedChunk[] = [];
+    let i = 0;
+    while (i < chunks.length) {
+      const curr = chunks[i];
+      const headerPrefix = `${curr.metadata.schemeName} - ${curr.metadata.sectionTitle}\n\n`;
+      const body = curr.text.startsWith(headerPrefix)
+        ? curr.text.slice(headerPrefix.length).trim()
+        : curr.text.trim();
+
+      if (
+        body.length < 200 &&
+        i + 1 < chunks.length &&
+        chunks[i + 1].metadata.pageNumber === curr.metadata.pageNumber &&
+        chunks[i + 1].metadata.schemeName === curr.metadata.schemeName
+      ) {
+        const next = chunks[i + 1];
+        const nextHeaderPrefix = `${next.metadata.schemeName} - ${next.metadata.sectionTitle}\n\n`;
+        const nextBody = next.text.startsWith(nextHeaderPrefix)
+          ? next.text.slice(nextHeaderPrefix.length).trim()
+          : next.text.trim();
+        const mergedText = `${nextHeaderPrefix}${body}\n\n${nextBody}`;
+        chunks[i + 1] = {
+          text: mergedText,
+          metadata: {
+            ...next.metadata,
+          },
+        };
+        i++;
+      } else {
+        mergedChunks.push(curr);
+        i++;
+      }
+    }
+
+    mergedChunks.forEach((c, idx) => {
+      c.metadata.chunkIndex = idx;
+    });
+
+    return mergedChunks;
   }
 
   public splitPageIntoSections(

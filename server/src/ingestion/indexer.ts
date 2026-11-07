@@ -17,13 +17,24 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { execSync } from 'node:child_process';
 import { config } from '../config/index.js';
 import { connectToDatabase, getChunksCollection, closeDatabaseConnection } from '../db/index.js';
 import { getEmbeddingProvider } from '../providers/index.js';
 import { TextCleaner, DocumentPageText } from './cleaner.js';
-import { DocumentChunker, PageContent, DocumentInfo, GeneratedChunk } from './chunker.js';
+import { DocumentChunker, PageContent, DocumentInfo, GeneratedChunk, CHUNKER_VERSION, OutlineEntry } from './chunker.js';
 import { analyzeGarble } from './garbleDetector.js';
 import { EmbeddingCache } from '../providers/embeddingCache.js';
+
+function getGitCommit(): string {
+  try {
+    const commit = execSync('git rev-parse --short HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    const status = execSync('git status --porcelain --untracked-files=no', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return status ? `${commit}-dirty` : commit;
+  } catch {
+    return 'unknown';
+  }
+}
 
 interface ManifestSchemeEntry {
   file: string;
@@ -32,6 +43,7 @@ interface ManifestSchemeEntry {
   level: 'central' | 'state';
   language: string;
   sourceUrl: string;
+  outlinePath?: string;
 }
 
 interface Manifest {
@@ -41,7 +53,7 @@ interface Manifest {
 interface QuarantineRecord {
   file: string;
   pageNumber: number;
-  reason: 'under_100_characters' | 'garble_rate_exceeded' | 'scanned_page' | 'failed_englishness_check';
+  reason: 'under_100_characters' | 'garble_rate_exceeded' | 'scanned_page' | 'failed_englishness_check' | 'foreign_script_detected';
   charCount: number;
   garbleRatePer1000: number;
   signatures: Record<string, number>;
@@ -49,8 +61,12 @@ interface QuarantineRecord {
 }
 
 export async function runIngestion() {
+  const gitCommit = getGitCommit();
+  const INGEST_RUN_ID = process.env.INGEST_RUN_ID || `${Date.now()}_${gitCommit}`;
   console.log('\n======================================================================');
-  console.log('  SchemeSathi — PDF Ingestion & Vector Indexing Pipeline (Phase 1)');
+  console.log('  SchemeSathi — PDF Ingestion & Vector Indexing Pipeline');
+  console.log(`  Chunker: DocumentChunker v${CHUNKER_VERSION} | Git Commit: ${gitCommit}`);
+  console.log(`  Ingest Run ID: ${INGEST_RUN_ID}`);
   console.log('======================================================================\n');
 
   // Find project root directory containing data/raw_pdfs
@@ -267,7 +283,40 @@ export async function runIngestion() {
       console.log(`   Stripping ${repeatingBlacklist.size} repeating header/footer patterns.`);
     }
 
-    const cleanedPages: PageContent[] = validPages.map((vp) => {
+    // Load canonical outline if referenced in manifest
+    let outline: OutlineEntry[] | undefined;
+    let indexedPagesSet: Set<number> | null = null;
+
+    if (entry.outlinePath) {
+      const fullOutlinePath = path.resolve(rootDir, entry.outlinePath);
+      if (fs.existsSync(fullOutlinePath)) {
+        const rawOutline = JSON.parse(fs.readFileSync(fullOutlinePath, 'utf8'));
+        outline = [];
+        indexedPagesSet = new Set<number>();
+
+        for (const o of rawOutline) {
+          if (o.index === false) continue;
+          for (let p = o.startPage; p <= o.endPage; p++) indexedPagesSet.add(p);
+
+          if (o.subSchemes && o.subSchemes.length > 0) {
+            const minSub = Math.min(...o.subSchemes.map((s: any) => s.startPage));
+            if (minSub > o.startPage) {
+              outline.push({ schemeName: o.schemeName, startPage: o.startPage, endPage: minSub - 1 });
+            }
+            for (const sub of o.subSchemes) {
+              outline.push({ schemeName: o.schemeName, subScheme: sub.subScheme, startPage: sub.startPage, endPage: sub.endPage });
+            }
+          } else {
+            outline.push({ schemeName: o.schemeName, startPage: o.startPage, endPage: o.endPage });
+          }
+        }
+        console.log(`   Loaded canonical outline from ${entry.outlinePath} (${outline.length} scheme entries, ${indexedPagesSet.size} indexed pages).`);
+      }
+    }
+
+    const pagesToClean = indexedPagesSet ? validPages.filter((vp) => indexedPagesSet!.has(vp.pageNumber)) : validPages;
+
+    const cleanedPages: PageContent[] = pagesToClean.map((vp) => {
       const rawPageObj = rawPages.find((rp) => rp.pageNumber === vp.pageNumber)!;
       const cleaned = TextCleaner.cleanPageText(rawPageObj, repeatingBlacklist);
       return {
@@ -284,30 +333,13 @@ export async function runIngestion() {
       category: entry.category,
       level: entry.level,
       language: entry.language,
+      outline,
     };
 
-    let chunks: GeneratedChunk[] = [];
-    const refinedChunksPath = path.resolve(processedDir, 'refined_chunks_191.json');
-    if (fs.existsSync(refinedChunksPath) && entry.file.includes('MSMESchemebooklet')) {
-      const rawRefined = JSON.parse(fs.readFileSync(refinedChunksPath, 'utf8'));
-      chunks = rawRefined.map((c: any) => ({
-        text: c.text,
-        metadata: {
-          schemeName: c.schemeName,
-          sectionTitle: c.sectionTitle,
-          documentTitle: c.documentTitle,
-          sourceFile: c.sourceFile,
-          pageNumber: c.pageNumber,
-          category: c.category,
-          level: c.level,
-          language: c.language,
-          chunkIndex: c.chunkIndex,
-          isTable: Boolean(c.isTable),
-        },
-      }));
-    } else {
-      chunks = chunker.chunkDocument(cleanedPages, docInfo);
-    }
+    const gitCommit = getGitCommit();
+    console.log(`   Chunking with DocumentChunker v${CHUNKER_VERSION} (commit: ${gitCommit})...`);
+    let chunks: GeneratedChunk[] = chunker.chunkDocument(cleanedPages, docInfo);
+    console.log(`   Generated ${chunks.length} chunks from ${cleanedPages.length} cleaned pages.`);
 
     // Deduplication Quality Gate: content-hash deduplication (SHA-256)
     const rawChunkCount = chunks.length;
@@ -381,17 +413,33 @@ export async function runIngestion() {
       level: c.metadata.level,
       language: c.metadata.language,
       isTable: c.metadata.isTable,
+      kind: c.metadata.kind || 'scheme',
+      ingestRunId: INGEST_RUN_ID,
       embedding: embeddings[idx],
       createdAt: new Date(),
     }));
 
     if (collection) {
-      // Idempotent upsert: delete existing chunks for this sourceFile before inserting
-      await collection.deleteMany({ sourceFile: entry.file });
+      // Safety Guard: Indexer deletes ONLY chunks matching this EXACT INGEST_RUN_ID (idempotency)
+      // and NEVER prunes other runs or legacy runs.
+      const deleteFilter = {
+        sourceFile: entry.file,
+        ingestRunId: INGEST_RUN_ID,
+      };
+      const existingSameRun = await collection.countDocuments(deleteFilter);
+      if (existingSameRun > 0) {
+        const deleteResult = await collection.deleteMany(deleteFilter);
+        console.log(
+          `   🔄 Idempotent re-run: Deleted ${deleteResult.deletedCount} existing chunks matching ingestRunId "${INGEST_RUN_ID}".`
+        );
+      }
+
+      // Insert the new chunks with INGEST_RUN_ID
       const insertResult = await collection.insertMany(dbDocs);
+      console.log(`   ✅ Stored ${insertResult.insertedCount} chunks with ingestRunId "${INGEST_RUN_ID}" in MongoDB Atlas.`);
+
       const currentDocCount = await collection.countDocuments();
-      console.log(`   ✅ Stored ${insertResult.insertedCount} chunks in MongoDB Atlas.`);
-      console.log(`   📊 Total collection count in MongoDB (collection.countDocuments()): ${currentDocCount}`);
+      console.log(`   📊 Total collection count in MongoDB: ${currentDocCount}`);
       totalChunksIndexed += insertResult.insertedCount;
     } else {
       const cacheFile = path.resolve(processedDir, `chunks_${path.basename(entry.file, '.pdf')}.json`);

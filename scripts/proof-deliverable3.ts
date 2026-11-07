@@ -138,36 +138,15 @@ async function runProof() {
 
   // 3. Chunking with heading awareness and table preservation
   // 3. Chunking with heading awareness and table preservation
-  let chunks: GeneratedChunk[] = [];
-  const refinedChunksPath = path.resolve('data', 'processed', 'refined_chunks_191.json');
-  if (fs.existsSync(refinedChunksPath)) {
-    const rawRefined = JSON.parse(fs.readFileSync(refinedChunksPath, 'utf8'));
-    chunks = rawRefined.map((c: any) => ({
-      text: c.text,
-      metadata: {
-        schemeName: c.schemeName,
-        sectionTitle: c.sectionTitle,
-        documentTitle: c.documentTitle,
-        sourceFile: c.sourceFile,
-        pageNumber: c.pageNumber,
-        category: c.category,
-        level: c.level,
-        language: c.language,
-        chunkIndex: c.chunkIndex,
-        isTable: Boolean(c.isTable),
-      },
-    }));
-  } else {
-    const chunker = new DocumentChunker(800, 120);
-    chunks = chunker.chunkDocument(cleanedPages, {
-      sourceFile: 'MSMESchemebooklet2025-26.pdf',
-      documentTitle: 'Ministry of MSME Scheme Booklet 2025-26',
-      defaultSchemeName: 'Ministry of MSME Scheme Booklet 2025-26',
-      category: 'Business, MSME & Entrepreneurship',
-      level: 'central',
-      language: 'en',
-    });
-  }
+  const chunker = new DocumentChunker(800, 120);
+  const chunks: GeneratedChunk[] = chunker.chunkDocument(cleanedPages, {
+    sourceFile: 'MSMESchemebooklet2025-26.pdf',
+    documentTitle: 'Ministry of MSME Scheme Booklet 2025-26',
+    defaultSchemeName: 'Ministry of MSME Scheme Booklet 2025-26',
+    category: 'Business, MSME & Entrepreneurship',
+    level: 'central',
+    language: 'en',
+  });
 
   console.log(`\n--- 3. Chunking Report ---`);
   console.log(`Total Chunks Generated: ${chunks.length}`);

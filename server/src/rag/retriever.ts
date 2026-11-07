@@ -29,16 +29,25 @@ export class VectorRetriever {
     // 2. Query MongoDB Atlas Vector Search
     const searchStart = Date.now();
     const collection = await getChunksCollection();
+
+    const vectorSearchStage: Record<string, any> = {
+      index: indexName,
+      path: 'embedding',
+      queryVector,
+      numCandidates,
+      limit,
+    };
+
+    if (config.ACTIVE_INGEST_RUN) {
+      vectorSearchStage.filter = {
+        ingestRunId: { $eq: config.ACTIVE_INGEST_RUN },
+      };
+    }
+
     const rawResults = await collection
       .aggregate([
         {
-          $vectorSearch: {
-            index: indexName,
-            path: 'embedding',
-            queryVector,
-            numCandidates,
-            limit,
-          },
+          $vectorSearch: vectorSearchStage,
         },
         {
           $project: {
@@ -48,6 +57,7 @@ export class VectorRetriever {
             pageNumber: 1,
             text: 1,
             isTable: 1,
+            ingestRunId: 1,
             score: { $meta: 'vectorSearchScore' },
           },
         },

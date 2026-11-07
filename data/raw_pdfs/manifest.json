@@ -7,7 +7,8 @@
       "category": "Business, MSME & Entrepreneurship",
       "level": "central",
       "language": "en",
-      "sourceUrl": "https://www.msme.gov.in"
+      "sourceUrl": "https://www.msme.gov.in",
+      "outlinePath": "data/outlines/MSMESchemebooklet2025-26.json"
     }
   ]
 }
