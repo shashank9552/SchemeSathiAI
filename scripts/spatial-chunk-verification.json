@@ -1,0 +1,431 @@
+{
+  "total": 190,
+  "onStoredPage": 143,
+  "onDifferentPage": 0,
+  "notInBooklet": 47,
+  "mismatches": [
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa309f6",
+      "storedPage": 3,
+      "actualPages": [],
+      "scheme": "Table of Contents — Schemes Implemented by M/o MSME",
+      "section": "Table of Contents",
+      "sample": "2. Credit Guarantee Scheme for Micro & Small Enterprises 07 (CGTMSE)"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa309f7",
+      "storedPage": 3,
+      "actualPages": [],
+      "scheme": "Table of Contents — Schemes Implemented by M/o MSME",
+      "section": "Table of Contents",
+      "sample": "3. Micro & Small Enterprises Cluster Development 09 Programme (MSE-CDP) Scheme"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa309ff",
+      "storedPage": 3,
+      "actualPages": [],
+      "scheme": "Table of Contents — Schemes Implemented by M/o MSME",
+      "section": "Table of Contents",
+      "sample": "11. A Scheme for Promotion of Innovation, Rural Industries 26 and Entrepreneurship (ASPIRE"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a00",
+      "storedPage": 3,
+      "actualPages": [],
+      "scheme": "Table of Contents — Schemes Implemented by M/o MSME",
+      "section": "Table of Contents",
+      "sample": "12. Khadi Gramodyog Vikas Yojana 28 I . Khadi Vikas Yojana 28 II . Gramodyog Vikas Yojana "
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a02",
+      "storedPage": 4,
+      "actualPages": [],
+      "scheme": "Table of Contents — Schemes Implemented by M/o MSME",
+      "section": "Table of Contents",
+      "sample": "14. PM Vishwakarma- Enabling Artisans & Craftspeople to 34 scale-up their Enterprises."
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a1e",
+      "storedPage": 15,
+      "actualPages": [],
+      "scheme": "Entrepreneurship Skill Development Programme (ESDP)",
+      "section": "Overview",
+      "sample": "• Entrepreneurship cum Skill Development Programme(E-SDP) - Six weeks training programme i"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a44",
+      "storedPage": 31,
+      "actualPages": [],
+      "scheme": "Khadi Vikas Yojana",
+      "section": "Overview",
+      "sample": "5. Other Components • Centre of Excellence for Khadi • Khadi Quality Assurance • Marketing"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a46",
+      "storedPage": 31,
+      "actualPages": [],
+      "scheme": "Khadi Vikas Yojana",
+      "section": "Overview",
+      "sample": "1. Agarbatti Programme • Training Programme in under Wellness and Agarbatti industry. Cosm"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a47",
+      "storedPage": 31,
+      "actualPages": [],
+      "scheme": "Khadi Vikas Yojana",
+      "section": "Overview",
+      "sample": "2. Leather Footwear Activity • Training on designing and under Handmade Paper manufacturin"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a53",
+      "storedPage": 36,
+      "actualPages": [],
+      "scheme": "Tool Rooms and Technical Institutions",
+      "section": "Overview",
+      "sample": "• Toolkit Incentive: A toolkit incentive of up to Rs. 15,000 through e-vouchers. • Credit "
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a61",
+      "storedPage": 42,
+      "actualPages": [],
+      "scheme": "MSME Champions Scheme",
+      "section": "MSME Innovative (Incubation, IPR and Design)",
+      "sample": "• Additional subsidy: • 10% for SC/ST owned MSMEs OR MSMEs in NER/Himalayan/LWE/Island ter"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a6c",
+      "storedPage": 47,
+      "actualPages": [],
+      "scheme": "MSME Champions Scheme",
+      "section": "MSME Competitive (Lean) Scheme",
+      "sample": "• Implementation Cost (Max. per unit) • Basic Level: Free • Intermediate Level: ₹ 1,20,000"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a7b",
+      "storedPage": 56,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "1. (Near ITI Play ground), PO-Kunjaban, Fax : 0381-2356570 Agartala-799006 MSME-DFO, Ph : "
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a7c",
+      "storedPage": 56,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "2. Fax : 0562-2280882 Nunhai, (U.P.), Agra -282 006. UP, MSME-DFO, 65/1,G.S.T. Road, Ph : "
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a7d",
+      "storedPage": 56,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "4. Ph : 0671-2548006 /077 /049 dcdi-cuttack@dcmsme.gov.in College Square, Fax : 0671-26119"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a7e",
+      "storedPage": 56,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "5. MSME-DFO, Tadong Housing Colony, Ph : 03592-231262 /880 dcdi-gangtok@dcmsme.gov.in P.O."
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a81",
+      "storedPage": 56,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "9. Gokul Road, 2335634 Hubli -580 030 Karnataka, Fax :0836-2330389 MSME-DFO, Ph : 0385-244"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a82",
+      "storedPage": 57,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "MSME-DFO, 22, Godown, Ph : 0141-2212098/3099/ 0553 dcdi-jaipur@dcmsme.gov.in"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a83",
+      "storedPage": 57,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "12. Industrial Estate, Fax : 0141-2210553 Jaipur -302 006. Rajasthan MSME-DFO, Ph : 0191-2"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a84",
+      "storedPage": 57,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "13. Industrial Estate, Digiana, Fax : 0191-2450035 Jammu -180 010 MSME-DFO, Ph : 0512-2295"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a85",
+      "storedPage": 57,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "14. 0512-2295071, 0512-2295073 Kalpi Road, Fax : 0512-2220831 Kanpur -208 012. UP MSME-DFO"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a86",
+      "storedPage": 57,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "15. Industrial Development Colony, Near Fax : 0184-2231862 Iti, Kunjpura Road Karnal -132 "
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a87",
+      "storedPage": 57,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "16. Ph : 033-25770595/598 dcdi-kolkatta@dcmsme.gov.in 111&112,B.T.Road, Fax : 033-25775531"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a88",
+      "storedPage": 57,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "17. MSME-DFO, Ph : 0161-2531733 /735 dcdi-ludhiana@dcmsme.gov.in Industrial Area B, Fax : "
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a89",
+      "storedPage": 57,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "18. MSME-DFO, Kurla Andheri Road, Ph : 91-22-28576090 / 3091 / 4305 dcdi-mumbai@dcmsme.gov"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a8a",
+      "storedPage": 57,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "19. MSME-DFO, C- Block, C.G.O. Complex, Ph : 0712-2510352/0046 dcdi-nagpur@dcmsme.gov.in S"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a8b",
+      "storedPage": 57,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "20. MSME-DFO, Okhla Industrial Estate Ph : 011-26847223, dcdi-haldwani@dcmsme.gov.in New D"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a8c",
+      "storedPage": 57,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "21. MSME-DFO, Ph :0612-2262719 , 0612-2262186 , dcdi-patna@dcmsme.gov.in Patilputra Indust"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a8f",
+      "storedPage": 57,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "24. CHAMBAGHAT, Fax :01792-230265 Solan -173213. Himachal Pradesh"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a93",
+      "storedPage": 58,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "27. Fax :0532-2696809 Allahabad -211 009. U.P, MSME-DFO,Rajaji Nagar, Ph :080-23151540/582"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a94",
+      "storedPage": 58,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "28. Industrial Estate Fax :080-23144506 Bangalore -560 044. Karnataka, MSME-DFO, Narsapur "
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a97",
+      "storedPage": 58,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "31. Ph : 03862-248552 Brdcdi-dima@dcmsme.gov.in 6th Mile, Sovima, Dimapur, Nagaland - 7971"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a98",
+      "storedPage": 58,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "1. BR.MSME-DFO Apidfc Building 'C' Ph : 0360-2291176 brmsme.itan@gmail.com Sector, Itanaga"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a99",
+      "storedPage": 58,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "2. BR.MSME-DFO Vip Road, Jungle Ghat, Ph : 03192-252308 Post Box No.547, Portblair-744103"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a9a",
+      "storedPage": 58,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "3. BR.MSME-DFO Link Road Point, Ph : 03842-247649 brdcdi-silc@dcmsme.gov.in N.S.Avenue, Si"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a9b",
+      "storedPage": 58,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "4. BR.MSME-DFO Darrang College Road, Ph : 03712-221084 Tezpur-784001 BR.MSME-DFO RA-39 (Gr"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a9d",
+      "storedPage": 58,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "6. Ph : 0542-2370621 Estate, Varanasi -221106."
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a9e",
+      "storedPage": 59,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "BR.MSME-DFO Amalepatti, Ph : 03761-272549 brdcdi-diph@dcmsme.gov.in"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30a9f",
+      "storedPage": 59,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "7. Diphu-782460 Karbi Anglong (dist) BR.MSME-DFO Ph : -0260-2640933,2643103 brdcdi-silv@dc"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30aa1",
+      "storedPage": 59,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "11. BR.MSME-DFO Opposite Industrial Ph : 0191-2431077, 2435425 brdcdi-bhiw@dcmsme.gov.in E"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30aa2",
+      "storedPage": 59,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "12. BR.MSME-DFO Katras Road, Ph : 0326-2303769/380 brdcdi-dhan@dcmsme.gov.in Matkuria, Dha"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30aa3",
+      "storedPage": 59,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "13. BR.MSME-DFO L-11, Indl.Estate, Ph : 0824-2217936 /96 brdcdi-mang@dcmsme.gov.in Yeyyadi"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30aa4",
+      "storedPage": 59,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "14. Industrial Estatem.S.K. Mill Road, Ph : 08472-420944 brdcdi-gulb@dcmsme.gov.in Gulbarg"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30aa5",
+      "storedPage": 59,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "15. BR.MSME-DFO 7, Indl. Estate, Ph :0751/2422590 dcdigwl.msme@gov.in Tansen Road,, Gwalio"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30aa8",
+      "storedPage": 59,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "18. BR.MSME-DFO Lower Lachimiere, Ph : 0364 2223349 brdcdi-shil@dcmsme.gov.in Shilong-7930"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30aa9",
+      "storedPage": 59,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "19. BR.MSME-DFO Tura,Near TV Tower Ph : 03651-222569 brdcdi-tura@dcmsme.gov.in Dakopgre Tu"
+    },
+    {
+      "type": "NOT_IN_BOOKLET",
+      "_id": "6ad4b2e8c9c1e1b88fa30aae",
+      "storedPage": 59,
+      "actualPages": [],
+      "scheme": "Directory of Field Offices, MSME-DFOs & Testing Centres",
+      "section": "Directory & Contact Details",
+      "sample": "25. BR.MSME-DFO Station More,P.O.Suri, Ph : Ph :03462-2554402 brdcdi-birb@dcmsme.gov.in Bi"
+    }
+  ]
+}

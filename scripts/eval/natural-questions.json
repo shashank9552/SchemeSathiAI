@@ -1,0 +1,309 @@
+[
+  {
+    "id": "NAT-ANS-01",
+    "category": "answerable",
+    "language": "en",
+    "question": "I am 22 and want to start my own small business. Which scheme can help?",
+    "expectedScheme": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "expectedPage": 5,
+    "expectedPhrase": "above 18 years of age"
+  },
+  {
+    "id": "NAT-ANS-02",
+    "category": "answerable",
+    "language": "en",
+    "question": "I am 22 years old and want to start a small manufacturing business. What financial help is available?",
+    "expectedScheme": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "expectedPage": 5,
+    "expectedPhrase": "margin money subsidy is"
+  },
+  {
+    "id": "NAT-ANS-03",
+    "category": "answerable",
+    "language": "en",
+    "question": "How can a young person get a loan to start a business?",
+    "expectedScheme": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "expectedPage": 5,
+    "expectedPhrase": "above 18 years of age"
+  },
+  {
+    "id": "NAT-ANS-04",
+    "category": "answerable",
+    "language": "en",
+    "question": "I am a 28-year-old woman wanting to open a tailoring workshop. Can I get a bank loan without giving land or property as collateral?",
+    "expectedScheme": "Credit Guarantee Scheme for Micro & Small Enterprises (CGTMSE)",
+    "expectedPage": 10,
+    "expectedPhrase": "Women entrepreneurs"
+  },
+  {
+    "id": "NAT-ANS-05",
+    "category": "answerable",
+    "language": "en",
+    "question": "I repaid my first small enterprise loan completely on time. Can I get another loan to add more machines to my factory?",
+    "expectedScheme": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "expectedPage": 7,
+    "expectedPhrase": "maximum cost of the project under manufacturing sector for up-gradation is Rs.1.00 crore"
+  },
+  {
+    "id": "NAT-ANS-06",
+    "category": "answerable",
+    "language": "en",
+    "question": "How much of the project budget must an unemployed person invest from personal savings to get a rural enterprise subsidy?",
+    "expectedScheme": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "expectedPage": 5,
+    "expectedPhrase": "own contribution of the beneficiary is"
+  },
+  {
+    "id": "NAT-ANS-07",
+    "category": "answerable",
+    "language": "en",
+    "question": "Do I have to visit government offices with physical paper documents, or can I submit my application online from home?",
+    "expectedScheme": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "expectedPage": 6,
+    "expectedPhrase": "Online application form is mandatory"
+  },
+  {
+    "id": "NAT-ANS-08",
+    "category": "answerable",
+    "language": "en",
+    "question": "What government subsidy percentage is provided for opening a new manufacturing unit in a rural area?",
+    "expectedScheme": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "expectedPage": 5,
+    "expectedPhrase": "subsidy is 35% in rural areas"
+  },
+  {
+    "id": "NAT-ANS-09",
+    "category": "answerable",
+    "language": "en",
+    "question": "Can local traditional artisans form a collective to build a shared production and processing center?",
+    "expectedScheme": "Scheme of Fund for Regeneration of Traditional Industries (SFURTI)",
+    "expectedPage": 14,
+    "expectedPhrase": "Artisans are constituted into Special Purpose Vehicles"
+  },
+  {
+    "id": "NAT-ANS-10",
+    "category": "answerable",
+    "language": "en",
+    "question": "I graduated from college and want practical training to become an entrepreneur. Are there free government awareness sessions?",
+    "expectedScheme": "Entrepreneurship Skill Development Programme (ESDP)",
+    "expectedPage": 15,
+    "expectedPhrase": "Entrepreneurship Awareness Programme"
+  },
+  {
+    "id": "NAT-ANS-11",
+    "category": "answerable",
+    "language": "en",
+    "question": "Where can rural youth receive hands-on incubation, packaging training, and modern machinery to start an agro business?",
+    "expectedScheme": "A Scheme for Promotion of Innovation, Rural Industries and Entrepreneurship (ASPIRE)",
+    "expectedPage": 28,
+    "expectedPhrase": "Livelihood Business Incubators"
+  },
+  {
+    "id": "NAT-ANS-12",
+    "category": "answerable",
+    "language": "en",
+    "question": "What assistance is available for traditional weavers and charkha spinners to modernize their handlooms?",
+    "expectedScheme": "Khadi Vikas Yojana",
+    "expectedPage": 30,
+    "expectedPhrase": "Khadi Artisans"
+  },
+  {
+    "id": "NAT-ANS-13",
+    "category": "answerable",
+    "language": "en",
+    "question": "I want to start beekeeping and honey extraction in my village. Does the government provide free bee boxes and training?",
+    "expectedScheme": "Gramodyog Vikas Yojana",
+    "expectedPage": 31,
+    "expectedPhrase": "Honey Mission"
+  },
+  {
+    "id": "NAT-ANS-14",
+    "category": "answerable",
+    "language": "en",
+    "question": "Can coastal coir rope and mat workers get financial support to purchase modernized spinning equipment?",
+    "expectedScheme": "Coir Vikas Yojana",
+    "expectedPage": 18,
+    "expectedPhrase": "modernization and technological upgradation"
+  },
+  {
+    "id": "NAT-ANS-15",
+    "category": "unanswerable",
+    "language": "en",
+    "question": "A private company bought goods from my small workshop but hasn't paid in two months. How does the government help collect delayed payments?",
+    "expectedScheme": "MSME SAMADHAAN (Delayed Payments Monitoring)",
+    "expectedPage": 51,
+    "expectedPhrase": "Delayed Payments",
+    "note": "Filing procedure for delayed payment complaints under MSME Samadhaan is omitted from MSMESchemebooklet2025-26.pdf (PDF page 51 contains Self Reliant India Fund continuation)."
+  },
+  {
+    "id": "NAT-ANS-16",
+    "category": "answerable",
+    "language": "en",
+    "question": "Can a village blacksmith or carpenter receive financial support to buy a modern kit of tools?",
+    "expectedScheme": "Tool Rooms and Technical Institutions",
+    "expectedPage": 36,
+    "expectedPhrase": "toolkit incentive of up to Rs. 15,000"
+  },
+  {
+    "id": "NAT-ANS-17",
+    "category": "answerable",
+    "language": "en",
+    "question": "How can a small manufacturer get financial reimbursement for filing a patent for an invention?",
+    "expectedScheme": "MSME Champions Scheme",
+    "expectedPage": 40,
+    "expectedPhrase": "Intellectual Property Rights"
+  },
+  {
+    "id": "NAT-ANS-18",
+    "category": "unanswerable",
+    "language": "en",
+    "question": "Is there a mandatory annual purchase requirement for government departments to buy products from small enterprises?",
+    "expectedScheme": "MSME SAMBANDH (Public Procurement Policy Monitoring)",
+    "expectedPage": 52,
+    "expectedPhrase": "25% of annual procurement",
+    "note": "Mandatory 25% annual public procurement policy under MSME Sambandh is not present in MSMESchemebooklet2025-26.pdf (PDF page 52 covers RAMP)."
+  },
+  {
+    "id": "NAT-ANS-19",
+    "category": "unanswerable",
+    "language": "en",
+    "question": "Is the official government registration portal for small businesses completely free and paperless?",
+    "expectedScheme": "Udyam Registration Portal",
+    "expectedPage": 53,
+    "expectedPhrase": "free of cost",
+    "note": "Registration fee/paperless details for Udyam are omitted from MSMESchemebooklet2025-26.pdf (PDF page 53 contains a placeholder for RAMP portal)."
+  },
+  {
+    "id": "NAT-ANS-20",
+    "category": "answerable",
+    "language": "hi",
+    "question": "मैं 24 वर्ष का युवक हूं और अपने गांव में आटा चक्की लगाना चाहता हूं। मुझे कितनी सब्सिडी और बैंक लोन मिल सकता है?",
+    "expectedScheme": "Prime Minister’s Employment Generation Programme (PMEGP)",
+    "expectedPage": 5,
+    "expectedPhrase": "above 18 years of age"
+  },
+  {
+    "id": "NAT-ANS-21",
+    "category": "answerable",
+    "language": "hi",
+    "question": "महिला उद्यमी को अपना नया व्यवसाय शुरू करने के लिए बिना किसी संपत्ति गिरवी रखे कितने रुपये तक की बैंक गारंटी मिलती है?",
+    "expectedScheme": "Credit Guarantee Scheme for Micro & Small Enterprises (CGTMSE)",
+    "expectedPage": 10,
+    "expectedPhrase": "Women entrepreneurs"
+  },
+  {
+    "id": "NAT-ANS-22",
+    "category": "unanswerable",
+    "language": "hi",
+    "question": "अगर कोई खरीदार कंपनी 45 दिनों में छोटे व्यापारी का बकाया भुगतान नहीं करती है तो कहां शिकायत दर्ज करें?",
+    "expectedScheme": "MSME SAMADHAAN (Delayed Payments Monitoring)",
+    "expectedPage": 51,
+    "expectedPhrase": "45 days",
+    "note": "45-day payment statutory timeline and Samadhaan complaint filing instructions are omitted from MSMESchemebooklet2025-26.pdf."
+  },
+  {
+    "id": "NAT-ANS-23",
+    "category": "answerable",
+    "language": "hi",
+    "question": "पारंपरिक कुम्हारों को मिट्टी के बर्तन और दीये बनाने के लिए बिजली के चाक की सरकारी सहायता कैसे मिलती है?",
+    "expectedScheme": "Gramodyog Vikas Yojana",
+    "expectedPage": 31,
+    "expectedPhrase": "Pottery Activity"
+  },
+  {
+    "id": "NAT-ANS-24",
+    "category": "answerable",
+    "language": "hi",
+    "question": "क्या अनुसूचित जाति और जनजाति के नए उद्यमियों के लिए सरकार की तरफ से कोई विशेष सहयोग और प्रशिक्षण केंद्र है?",
+    "expectedScheme": "National SC-ST Hub Scheme",
+    "expectedPage": 26,
+    "expectedPhrase": "National SC-ST Hub"
+  },
+  {
+    "id": "NAT-ANS-25",
+    "category": "answerable",
+    "language": "hi",
+    "question": "छोटे कारखाने को गुणवत्ता सुधार और जीरो डिफेक्ट उत्पादन का सरकारी प्रमाण पत्र लेने पर क्या वित्तीय छूट मिलती है?",
+    "expectedScheme": "MSME Champions Scheme",
+    "expectedPage": 40,
+    "expectedPhrase": "Zero Defect Zero Effect"
+  },
+  {
+    "id": "NAT-UNANS-01",
+    "category": "unanswerable",
+    "subCategory": "near-topic-msme",
+    "language": "en",
+    "question": "I am a roadside tea vendor. How can I get a 10,000 rupee micro working capital loan without any collateral?"
+  },
+  {
+    "id": "NAT-UNANS-02",
+    "category": "unanswerable",
+    "subCategory": "near-topic-msme",
+    "language": "en",
+    "question": "Can a small general grocery store owner get an exemption from filing GST if annual sales are below 40 lakh rupees?"
+  },
+  {
+    "id": "NAT-UNANS-03",
+    "category": "unanswerable",
+    "subCategory": "near-topic-msme",
+    "language": "en",
+    "question": "What is the exact bank interest rate and 5-year repayment schedule for a 50,000 rupee Shishu loan?"
+  },
+  {
+    "id": "NAT-UNANS-04",
+    "category": "unanswerable",
+    "subCategory": "near-topic-msme",
+    "language": "en",
+    "question": "How can a retail shopkeeper get an emergency flood damage relief loan guarantee from the state disaster fund?"
+  },
+  {
+    "id": "NAT-UNANS-05",
+    "category": "unanswerable",
+    "subCategory": "near-topic-msme",
+    "language": "en",
+    "question": "What subsidy is provided to small logistics operators for purchasing electric commercial cargo three-wheelers?"
+  },
+  {
+    "id": "NAT-UNANS-06",
+    "category": "unanswerable",
+    "subCategory": "near-topic-msme",
+    "language": "en",
+    "question": "How can a technology startup apply for a three-year income tax holiday under Section 80IAC?"
+  },
+  {
+    "id": "NAT-UNANS-07",
+    "category": "unanswerable",
+    "subCategory": "near-topic-msme",
+    "language": "en",
+    "question": "Can an individual get a subsidized government loan to set up a commercial petrol pump franchise?"
+  },
+  {
+    "id": "NAT-UNANS-08",
+    "category": "unanswerable",
+    "subCategory": "near-topic-msme",
+    "language": "hi",
+    "question": "क्या दूध उत्पादक किसान को 10 भैंसें खरीदने और डेयरी शेड बनाने के लिए नाबार्ड से 50% अनुदान मिलता है?"
+  },
+  {
+    "id": "NAT-UNANS-09",
+    "category": "unanswerable",
+    "subCategory": "near-topic-msme",
+    "language": "hi",
+    "question": "पुराने कमर्शियल डीजल ऑटो रिक्शा को सीएनजी या इलेक्ट्रिक में बदलने पर नगर निगम से कितनी सब्सिडी मिलती है?"
+  },
+  {
+    "id": "NAT-UNANS-10",
+    "category": "unanswerable",
+    "subCategory": "out-of-corpus-general",
+    "language": "hi",
+    "question": "कक्षा 12 पास करने के बाद कॉलेज की पढ़ाई के लिए केंद्र सरकार की राष्ट्रीय छात्रवृत्ति योजना में कैसे आवेदन करें?"
+  },
+  {
+    "id": "NAT-UNANS-11",
+    "category": "unanswerable",
+    "subCategory": "out-of-domain-education",
+    "language": "en",
+    "question": "Can an Indian citizen get an education loan for an MBA from the MSME ministry?",
+    "note": "Out of domain; MSME ministry provides commercial enterprise credit guarantees, not educational student loans."
+  }
+]
