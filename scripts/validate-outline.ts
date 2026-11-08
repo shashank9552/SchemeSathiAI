@@ -24,9 +24,20 @@ function normalize(str: string): string {
   return str.toLowerCase().replace(/[\s\r\n\t]+/g, ' ').replace(/[^\w\s]/g, '').trim();
 }
 
-async function extractPagesFirst5Lines(): Promise<Map<number, string[]>> {
+function findProjectRoot(): string {
+  let cur = path.resolve(process.cwd());
+  while (cur !== path.dirname(cur)) {
+    if (fs.existsSync(path.join(cur, 'data', 'raw_pdfs', 'manifest.json'))) {
+      return cur;
+    }
+    cur = path.dirname(cur);
+  }
+  return path.resolve(process.cwd());
+}
+
+async function extractPagesFirst5Lines(projectRoot: string): Promise<Map<number, string[]>> {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  const pdfPath = path.resolve('data/raw_pdfs/MSMESchemebooklet2025-26.pdf');
+  const pdfPath = path.resolve(projectRoot, 'data/raw_pdfs/MSMESchemebooklet2025-26.pdf');
   const fileData = new Uint8Array(fs.readFileSync(pdfPath));
   const doc = await pdfjs.getDocument({ data: fileData, useSystemFonts: true }).promise;
 
@@ -175,11 +186,22 @@ export async function validateOutlineEntries(entries: OutlineEntry[], pageFirst5
 }
 
 async function main() {
+  const projectRoot = findProjectRoot();
+  const args = process.argv.slice(2);
+  const outlineArgIdx = args.indexOf('--outline');
+  let outlineInput = 'data/outlines/MSMESchemebooklet2025-26.json';
+  if (outlineArgIdx !== -1 && args[outlineArgIdx + 1]) {
+    outlineInput = args[outlineArgIdx + 1];
+  }
+  const outlinePath = path.isAbsolute(outlineInput)
+    ? outlineInput
+    : path.resolve(projectRoot, outlineInput);
+
   console.log('================================================================================');
-  console.log('  VALIDATE OUTLINE (data/outline.review.json)');
+  console.log(`  VALIDATE OUTLINE (${path.relative(projectRoot, outlinePath)})`);
+  console.log(`  Project Root: ${projectRoot}`);
   console.log('================================================================================\n');
 
-  const outlinePath = path.resolve('data/outline.review.json');
   if (!fs.existsSync(outlinePath)) {
     console.error(`❌ File not found: ${outlinePath}`);
     process.exit(1);
@@ -188,9 +210,9 @@ async function main() {
   const entries: OutlineEntry[] = JSON.parse(fs.readFileSync(outlinePath, 'utf8'));
   console.log(`Loaded ${entries.length} entries from ${outlinePath}`);
 
-  const pageFirst5Map = await extractPagesFirst5Lines();
+  const pageFirst5Map = await extractPagesFirst5Lines(projectRoot);
 
-  // 1. Run live validation on data/outline.review.json
+  // 1. Run live validation on target outline
   const result = await validateOutlineEntries(entries, pageFirst5Map);
 
   if (result.passed) {

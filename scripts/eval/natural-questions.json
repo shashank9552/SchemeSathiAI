@@ -85,7 +85,7 @@
     "category": "answerable",
     "language": "en",
     "question": "I graduated from college and want practical training to become an entrepreneur. Are there free government awareness sessions?",
-    "expectedScheme": "Entrepreneurship Skill Development Programme (ESDP)",
+    "expectedScheme": "Entrepreneurship and Skill Development Programme (ESDP) Scheme",
     "expectedPage": 15,
     "expectedPhrase": "Entrepreneurship Awareness Programme"
   },
@@ -94,7 +94,7 @@
     "category": "answerable",
     "language": "en",
     "question": "Where can rural youth receive hands-on incubation, packaging training, and modern machinery to start an agro business?",
-    "expectedScheme": "A Scheme for Promotion of Innovation, Rural Industries and Entrepreneurship (ASPIRE)",
+    "expectedScheme": "Scheme for Promotion of Innovation, Rural Industry & Entrepreneurship (ASPIRE)",
     "expectedPage": 28,
     "expectedPhrase": "Livelihood Business Incubators"
   },
@@ -103,7 +103,7 @@
     "category": "answerable",
     "language": "en",
     "question": "What assistance is available for traditional weavers and charkha spinners to modernize their handlooms?",
-    "expectedScheme": "Khadi Vikas Yojana",
+    "expectedScheme": "Khadi Gramodyog Vikas Yojana",
     "expectedPage": 30,
     "expectedPhrase": "Khadi Artisans"
   },
@@ -112,7 +112,7 @@
     "category": "answerable",
     "language": "en",
     "question": "I want to start beekeeping and honey extraction in my village. Does the government provide free bee boxes and training?",
-    "expectedScheme": "Gramodyog Vikas Yojana",
+    "expectedScheme": "Khadi Gramodyog Vikas Yojana",
     "expectedPage": 31,
     "expectedPhrase": "Honey Mission"
   },
@@ -121,7 +121,7 @@
     "category": "answerable",
     "language": "en",
     "question": "Can coastal coir rope and mat workers get financial support to purchase modernized spinning equipment?",
-    "expectedScheme": "Coir Vikas Yojana",
+    "expectedScheme": "Coir Vikas Yojana (CVY)",
     "expectedPage": 18,
     "expectedPhrase": "modernization and technological upgradation"
   },
@@ -130,9 +130,6 @@
     "category": "unanswerable",
     "language": "en",
     "question": "A private company bought goods from my small workshop but hasn't paid in two months. How does the government help collect delayed payments?",
-    "expectedScheme": "MSME SAMADHAAN (Delayed Payments Monitoring)",
-    "expectedPage": 51,
-    "expectedPhrase": "Delayed Payments",
     "note": "Filing procedure for delayed payment complaints under MSME Samadhaan is omitted from MSMESchemebooklet2025-26.pdf (PDF page 51 contains Self Reliant India Fund continuation)."
   },
   {
@@ -140,7 +137,7 @@
     "category": "answerable",
     "language": "en",
     "question": "Can a village blacksmith or carpenter receive financial support to buy a modern kit of tools?",
-    "expectedScheme": "Tool Rooms and Technical Institutions",
+    "expectedScheme": "PM Vishwakarma Scheme",
     "expectedPage": 36,
     "expectedPhrase": "toolkit incentive of up to Rs. 15,000"
   },
@@ -158,9 +155,6 @@
     "category": "unanswerable",
     "language": "en",
     "question": "Is there a mandatory annual purchase requirement for government departments to buy products from small enterprises?",
-    "expectedScheme": "MSME SAMBANDH (Public Procurement Policy Monitoring)",
-    "expectedPage": 52,
-    "expectedPhrase": "25% of annual procurement",
     "note": "Mandatory 25% annual public procurement policy under MSME Sambandh is not present in MSMESchemebooklet2025-26.pdf (PDF page 52 covers RAMP)."
   },
   {
@@ -168,9 +162,6 @@
     "category": "unanswerable",
     "language": "en",
     "question": "Is the official government registration portal for small businesses completely free and paperless?",
-    "expectedScheme": "Udyam Registration Portal",
-    "expectedPage": 53,
-    "expectedPhrase": "free of cost",
     "note": "Registration fee/paperless details for Udyam are omitted from MSMESchemebooklet2025-26.pdf (PDF page 53 contains a placeholder for RAMP portal)."
   },
   {
@@ -196,9 +187,6 @@
     "category": "unanswerable",
     "language": "hi",
     "question": "अगर कोई खरीदार कंपनी 45 दिनों में छोटे व्यापारी का बकाया भुगतान नहीं करती है तो कहां शिकायत दर्ज करें?",
-    "expectedScheme": "MSME SAMADHAAN (Delayed Payments Monitoring)",
-    "expectedPage": 51,
-    "expectedPhrase": "45 days",
     "note": "45-day payment statutory timeline and Samadhaan complaint filing instructions are omitted from MSMESchemebooklet2025-26.pdf."
   },
   {
@@ -206,7 +194,7 @@
     "category": "answerable",
     "language": "hi",
     "question": "पारंपरिक कुम्हारों को मिट्टी के बर्तन और दीये बनाने के लिए बिजली के चाक की सरकारी सहायता कैसे मिलती है?",
-    "expectedScheme": "Gramodyog Vikas Yojana",
+    "expectedScheme": "Khadi Gramodyog Vikas Yojana",
     "expectedPage": 31,
     "expectedPhrase": "Pottery Activity"
   },

@@ -138,4 +138,83 @@ test('Chunker Pages 51 and 52 Scheme Attribution Test', async (t) => {
       );
     }
   });
+
+  await t.test('The first chunk of each scheme start page must not carry previous scheme last sectionTitle (no leak)', () => {
+    const p49Chunks = chunks.filter((c) => c.metadata.pageNumber === 49);
+    const p50Chunks = chunks.filter((c) => c.metadata.pageNumber === 50);
+    const p52Chunks = chunks.filter((c) => c.metadata.pageNumber === 52);
+
+    assert.ok(p49Chunks.length > 0);
+    assert.ok(p50Chunks.length > 0);
+    assert.ok(p52Chunks.length > 0);
+
+    const lastP49Section = p49Chunks[p49Chunks.length - 1].metadata.sectionTitle;
+    const firstP50Section = p50Chunks[0].metadata.sectionTitle;
+    const lastP51Chunks = chunks.filter((c) => c.metadata.pageNumber === 51);
+    const lastP51Section = lastP51Chunks[lastP51Chunks.length - 1].metadata.sectionTitle;
+    const firstP52Section = p52Chunks[0].metadata.sectionTitle;
+
+    // Page 49 ended with How to apply
+    assert.match(lastP49Section, /How to apply/i);
+    // Page 50 (start of SRI Fund) must reset to Overview and not inherit How to apply
+    assert.equal(firstP50Section, 'Overview');
+    assert.notEqual(firstP50Section, lastP49Section);
+
+    // Page 52 (start of RAMP) must reset to Overview and not carry prior scheme section
+    assert.equal(firstP52Section, 'Overview');
+  });
+
+  await t.test('Sub-schemes strictly follow "<subScheme> › <section>" format without repetition or comma lists', () => {
+    const p49Chunks = chunks.filter((c) => c.metadata.pageNumber === 49);
+    for (const c of p49Chunks) {
+      assert.match(
+        c.metadata.sectionTitle,
+        /^MSME Competitive \(Lean\) Scheme/i,
+        `Page 49 chunk must carry Lean subscheme prefix. Actual: "${c.metadata.sectionTitle}"`
+      );
+      assert.doesNotMatch(c.metadata.sectionTitle, /,/, 'Must not have comma-joined lists');
+      assert.doesNotMatch(c.metadata.sectionTitle, /Lean.*Lean/i, 'Must not repeat sub-scheme name');
+    }
+  });
+
+  await t.test('chunkDocument strictly binds schemeName to outline across all indexed pages', () => {
+    // Verify using synthetic multi-page document matching outline
+    const testPages: PageContent[] = [
+      { pageNumber: 7, text: '• 2nd Loan for up-gradation of existing PMEGP/MUDRA units\nDetailed Information: Second loan eligibility.' },
+      { pageNumber: 30, text: 'KHADI & GRAMODYOG VIKAS YOJANA\n1. Modified Market Development Assistance (MMDA)' },
+      { pageNumber: 31, text: '4. Strengthening Infrastructure of Existing Weak Khadi Institutions\nII. Gramodyog Vikas Yojana' },
+      { pageNumber: 41, text: '1) MSME SUSTAINABLE (ZED) CERTIFICATION\nObjective: The ZED Certification envisages...' },
+      { pageNumber: 44, text: '2) MSME INNOVATIVE (INCUBATION, IPR AND DESIGN)\nObjective: To promote innovation...' },
+      { pageNumber: 47, text: '3) MSME COMPETITIVE (LEAN) SCHEME\nObjective: Reduction of wastages...' },
+    ];
+
+    const fullDocInfo: DocumentInfo = {
+      sourceFile: 'MSMESchemebooklet2025-26.pdf',
+      documentTitle: 'Ministry of MSME Scheme Booklet 2025-26',
+      defaultSchemeName: 'Ministry of MSME Scheme Booklet 2025-26',
+      category: 'Business, MSME & Entrepreneurship',
+      level: 'central',
+      language: 'en',
+      outline: [
+        { schemeName: 'Prime Minister’s Employment Generation Programme (PMEGP)', startPage: 5, endPage: 6 },
+        { schemeName: 'Prime Minister’s Employment Generation Programme (PMEGP)', subScheme: '2nd Loan for up-gradation of existing PMEGP/MUDRA units', startPage: 7, endPage: 8 },
+        { schemeName: 'Khadi Gramodyog Vikas Yojana', startPage: 30, endPage: 32 },
+        { schemeName: 'MSME Champions Scheme', startPage: 40, endPage: 49 },
+      ],
+    };
+
+    const generated = chunker.chunkDocument(testPages, fullDocInfo);
+
+    for (const chunk of generated) {
+      const p = chunk.metadata.pageNumber;
+      if (p === 7) {
+        assert.equal(chunk.metadata.schemeName, 'Prime Minister’s Employment Generation Programme (PMEGP)');
+        assert.match(chunk.metadata.sectionTitle, /2nd Loan/);
+      } else if (p === 30 || p === 31) {
+        assert.equal(chunk.metadata.schemeName, 'Khadi Gramodyog Vikas Yojana');
+      } else if (p === 41 || p === 44 || p === 47) {
+        assert.equal(chunk.metadata.schemeName, 'MSME Champions Scheme');
+      }
+    }
+  });
 });

@@ -8,30 +8,75 @@ dotenv.config({ path: path.resolve(process.cwd(), 'server/.env') });
 
 import { config } from '../server/src/config/index.js';
 
-interface CliArgs {
+export interface CliArgs {
   source?: string;
   keep?: string;
   confirm: boolean;
 }
 
-function parseArgs(): CliArgs {
-  const args = process.argv.slice(2);
+export interface PruneResult {
+  totalInCollection: number;
+  totalForSource: number;
+  countToKeep: number;
+  countToPrune: number;
+  deletedCount: number;
+  dryRun: boolean;
+}
+
+export function parseArgs(argv: string[] = process.argv.slice(2)): CliArgs {
   const parsed: CliArgs = {
     confirm: false,
   };
 
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === '--source' && i + 1 < args.length) {
-      parsed.source = args[++i];
-    } else if (arg === '--keep' && i + 1 < args.length) {
-      parsed.keep = args[++i];
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === '--source' && i + 1 < argv.length) {
+      parsed.source = argv[++i];
+    } else if (arg === '--keep' && i + 1 < argv.length) {
+      parsed.keep = argv[++i];
     } else if (arg === '--confirm') {
       parsed.confirm = true;
     }
   }
 
   return parsed;
+}
+
+export async function executePrune(collection: any, args: CliArgs): Promise<PruneResult> {
+  if (!args.source || !args.keep) {
+    throw new Error('Refusing to prune: Missing required arguments. Both --source and --keep must be provided.');
+  }
+
+  const totalInCollection = await collection.countDocuments();
+  const totalForSource = await collection.countDocuments({ sourceFile: args.source });
+  const countToKeep = await collection.countDocuments({ sourceFile: args.source, ingestRunId: args.keep });
+
+  if (countToKeep === 0) {
+    throw new Error(
+      `Refusing to prune: Keep run "${args.keep}" has 0 chunks for source "${args.source}". Target keep run must have at least 1 chunk.`
+    );
+  }
+
+  const pruneFilter = {
+    sourceFile: args.source,
+    ingestRunId: { $ne: args.keep },
+  };
+  const countToPrune = await collection.countDocuments(pruneFilter);
+
+  let deletedCount = 0;
+  if (args.confirm && countToPrune > 0) {
+    const result = await collection.deleteMany(pruneFilter);
+    deletedCount = result.deletedCount || 0;
+  }
+
+  return {
+    totalInCollection,
+    totalForSource,
+    countToKeep,
+    countToPrune,
+    deletedCount,
+    dryRun: !args.confirm,
+  };
 }
 
 async function main() {
@@ -42,11 +87,11 @@ async function main() {
   console.log('================================================================================\n');
 
   if (!args.source || !args.keep) {
-    console.error('❌ Missing required arguments.');
+    console.error('❌ Refusing to prune: Missing required arguments.');
     console.error('Usage: npx tsx scripts/prune-old-runs.ts --source <file> --keep <runId> [--confirm]\n');
     console.error('Options:');
     console.error('  --source <file>   PDF file name in Atlas to prune (e.g. MSMESchemebooklet2025-26.pdf)');
-    console.error('  --keep <runId>    The specific ingestRunId to preserve');
+    console.error('  --keep <runId>    The specific ingestRunId to preserve (must have >= 1 chunk)');
     console.error('  --confirm         Perform actual deletion (defaults to dry run if omitted)');
     process.exit(1);
   }
@@ -60,61 +105,58 @@ async function main() {
     await client.connect();
     const collection = client.db(config.MONGODB_DB_NAME).collection(config.MONGODB_COLLECTION_NAME);
 
-    const totalInCollection = await collection.countDocuments();
-    const totalForSource = await collection.countDocuments({ sourceFile: args.source });
-    const countToKeep = await collection.countDocuments({ sourceFile: args.source, ingestRunId: args.keep });
-
-    const pruneFilter = {
-      sourceFile: args.source,
-      ingestRunId: { $ne: args.keep },
-    };
-    const countToPrune = await collection.countDocuments(pruneFilter);
-
     // Group candidates by run ID to give visibility
+    const pruneFilter = { sourceFile: args.source, ingestRunId: { $ne: args.keep } };
     const candidateRuns = await collection.aggregate([
       { $match: pruneFilter },
       { $group: { _id: '$ingestRunId', count: { $sum: 1 } } },
       { $sort: { count: -1 } }
     ]).toArray();
 
+    const res = await executePrune(collection, args);
+
     console.log(`Database Statistics:`);
-    console.log(`  Total documents in collection           : ${totalInCollection}`);
-    console.log(`  Total documents for source "${args.source}" : ${totalForSource}`);
-    console.log(`  Documents to keep (run "${args.keep}")      : ${countToKeep}`);
-    console.log(`  Documents eligible to prune             : ${countToPrune}`);
+    console.log(`  Total documents in collection           : ${res.totalInCollection}`);
+    console.log(`  Total documents for source "${args.source}" : ${res.totalForSource}`);
+    console.log(`  Documents to keep (run "${args.keep}")      : ${res.countToKeep}`);
+    console.log(`  Documents eligible to prune             : ${res.countToPrune}`);
 
     if (candidateRuns.length > 0) {
       console.log(`\nBreakdown of runs to be pruned:`);
-      candidateRuns.forEach((r) => {
+      candidateRuns.forEach((r: any) => {
         const label = r._id === null || r._id === undefined ? '(no ingestRunId / legacy)' : `"${r._id}"`;
         console.log(`  - Run ${label}: ${r.count} chunks`);
       });
     }
 
-    if (countToPrune === 0) {
+    if (res.countToPrune === 0) {
       console.log('\n✅ No older chunks found matching prune filter. Nothing to prune.');
       return;
     }
 
-    if (!args.confirm) {
+    if (res.dryRun) {
       console.log('\n--------------------------------------------------------------------------------');
-      console.log(`⚠️  DRY RUN ONLY: ${countToPrune} documents would be deleted.`);
+      console.log(`⚠️  DRY RUN ONLY: ${res.countToPrune} documents would be deleted.`);
       console.log('To execute the deletion, re-run this command with the --confirm flag:');
       console.log(`npx tsx scripts/prune-old-runs.ts --source "${args.source}" --keep "${args.keep}" --confirm`);
       console.log('--------------------------------------------------------------------------------');
     } else {
       console.log('\n🗑️  Executing deletion with --confirm...');
-      const result = await collection.deleteMany(pruneFilter);
-      console.log(`✅ Successfully deleted ${result.deletedCount} older chunks.`);
+      console.log(`✅ Successfully deleted ${res.deletedCount} older chunks.`);
       const remainingTotal = await collection.countDocuments();
       console.log(`📊 Updated collection count: ${remainingTotal} documents.`);
     }
+  } catch (err: any) {
+    console.error('❌', err.message);
+    process.exit(1);
   } finally {
     await client.close();
   }
 }
 
-main().catch((err) => {
-  console.error('❌ Error executing prune script:', err);
-  process.exit(1);
-});
+if (process.argv[1] && process.argv[1].endsWith('prune-old-runs.ts')) {
+  main().catch((err) => {
+    console.error('❌ Fatal error:', err);
+    process.exit(1);
+  });
+}

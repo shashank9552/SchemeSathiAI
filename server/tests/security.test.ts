@@ -161,7 +161,7 @@ test('Centralised Error Handling - Never leaks stack trace or sensitive keys', a
   // Mock MongoDB connection failure without opening a real connection
   const testApp = express();
   testApp.get('/error-with-secret', () => {
-    const sensitiveErr = new Error('Connection failed to mongodb+srv://admin:SecretPass123@cluster0.bseuo68.mongodb.net/schemesathi');
+    const sensitiveErr = new Error('Connection failed to mongodb+srv://user:pass@cluster.example.mongodb.net/schemesathi');
     (sensitiveErr as any).name = 'MongoServerSelectionError';
     throw sensitiveErr;
   });
@@ -176,7 +176,7 @@ test('Centralised Error Handling - Never leaks stack trace or sensitive keys', a
     // Verify response structure
     assert.equal(body.error, 'Internal server error.');
     assert.equal(body.stack, undefined, 'Stack trace must NEVER be present in response');
-    assert.equal(JSON.stringify(body).includes('SecretPass123'), false, 'Password must never be exposed');
+    assert.equal(JSON.stringify(body).includes('pass'), false, 'Password must never be exposed');
     assert.equal(JSON.stringify(body).includes('mongodb+srv'), false, 'MongoDB connection string must never be exposed');
   } finally {
     await testServer.close();
@@ -184,10 +184,10 @@ test('Centralised Error Handling - Never leaks stack trace or sensitive keys', a
 });
 
 test('Sanitization Helper - Redacts credentials and API keys in logs', () => {
-  const rawLog = 'Error connecting to mongodb+srv://app_user:MySecurePass@atlas.mongodb.net with key AIzaSyD1234567890abcdefghijklmnopqrstuv';
+  const rawLog = 'Error connecting to mongodb+srv://user:pass@cluster.example.mongodb.net with key AIzaSyD1234567890abcdefghijklmnopqrstuv';
   const sanitized = sanitizeLog(rawLog);
 
-  assert.ok(!sanitized.includes('MySecurePass'), 'Must redact passwords in URI');
+  assert.ok(!sanitized.includes('pass'), 'Must redact passwords in URI');
   assert.ok(!sanitized.includes('AIzaSyD1234567890abcdefghijklmnopqrstuv'), 'Must redact Google API key');
   assert.ok(sanitized.includes('[REDACTED_MONGODB_URI]'));
   assert.ok(sanitized.includes('[REDACTED_API_KEY]'));

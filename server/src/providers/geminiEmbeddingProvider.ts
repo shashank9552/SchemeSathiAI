@@ -67,6 +67,10 @@ export class GeminiEmbeddingProvider implements IEmbeddingProvider {
         const errMsg = err.message || String(err);
         const isQuota = errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED');
 
+        if (!isQuota && (errMsg.includes('fetch failed') || errMsg.includes('ENOTFOUND') || errMsg.includes('ECONNREFUSED'))) {
+          throw new Error(`Embedding API network unreachable: ${errMsg}`);
+        }
+
         if (attempt >= maxRetries) {
           throw new Error(`Failed to generate embedding after ${maxRetries} attempts: ${errMsg}`);
         }

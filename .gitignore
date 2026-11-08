@@ -23,6 +23,7 @@ out/
 data/processed/*
 !data/processed/.gitkeep
 data/backup-*/
+scripts/archive/
 
 # Ensure raw_pdfs manifest and schemas are explicitly tracked
 !data/raw_pdfs/manifest.json

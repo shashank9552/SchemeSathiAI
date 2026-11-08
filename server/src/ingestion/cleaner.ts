@@ -72,19 +72,78 @@ export class TextCleaner {
   }
 
   /**
-   * Normalizes spacing glitches from PDF extraction:
-   * - multi-part dates: "20. 09. 2022" -> "20.09.2022"
-   * - decimal numbers: "1. 00 lakh" -> "1.00 lakh"
-   * - URL domain spacing: "innovative. msme. gov. in" -> "innovative.msme.gov.in"
-   * Does NOT touch standard prose like "...drainage etc. in new/existing..."
+   * Reconnects URLs split across line breaks in PDF extraction:
+   * 1. URLs ending in "_", "-", or "/" (e.g. ".../Tool_", ".../SFURTI/")
+   * 2. URLs ending in "." or partial domain (e.g. "www.", "https://msme.")
+   * 3. URLs ending in partial file extensions (e.g. ".P" with "DF", ".ht" with "ml")
+   */
+  public static rejoinSplitUrls(lines: string[]): string[] {
+    const result: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i];
+
+      // Check if line ends with an incomplete/split URL
+      const urlMatch = line.match(/(https?:\/\/\S+|www\.\S+)$/i);
+      if (urlMatch && i + 1 < lines.length) {
+        const urlEnding = urlMatch[1];
+        const nextLine = lines[i + 1].trim();
+
+        // Case 1: ends in continuation character: _, -, /
+        if (/[_\-\/]$/.test(urlEnding)) {
+          const nextParts = nextLine.match(/^([a-zA-Z0-9_\-\./]+)(.*)$/);
+          if (nextParts) {
+            line = line + nextParts[1] + (nextParts[2] ? ' ' + nextParts[2].trim() : '');
+            i++;
+            result.push(line);
+            continue;
+          }
+        }
+
+        // Case 2: ends in partial domain / dot, e.g. "www." or "...msme." or "...co."
+        if (/\.$/.test(urlEnding)) {
+          const nextParts = nextLine.match(/^([a-zA-Z0-9_\-\./]+)(.*)$/);
+          if (nextParts) {
+            line = line + nextParts[1] + (nextParts[2] ? ' ' + nextParts[2].trim() : '');
+            i++;
+            result.push(line);
+            continue;
+          }
+        }
+
+        // Case 3: ends in partial file extension like ".P" with "DF"
+        const extMatch = urlEnding.match(/\.(p|pd|ht|asp)$/i);
+        if (extMatch) {
+          const ext = extMatch[1].toLowerCase();
+          let contMatch: RegExpMatchArray | null = null;
+          if (ext === 'p') contMatch = nextLine.match(/^(df\b)(.*)$/i);
+          else if (ext === 'pd') contMatch = nextLine.match(/^(f\b)(.*)$/i);
+          else if (ext === 'ht') contMatch = nextLine.match(/^(ml\b)(.*)$/i);
+          else if (ext === 'asp') contMatch = nextLine.match(/^(x\b)(.*)$/i);
+
+          if (contMatch) {
+            line = line + contMatch[1] + (contMatch[2] ? ' ' + contMatch[2].trim() : '');
+            i++;
+            result.push(line);
+            continue;
+          }
+        }
+      }
+
+      result.push(line);
+    }
+
+    return result;
+  }
+
+  /**
+   * Normalizes URL domain spacing glitches:
+   * "innovative. msme. gov. in" -> "innovative.msme.gov.in"
+   * (Decimal and date spacing rules removed: confirmed 0 hits in raw PDF;
+   * past glitches were caused solely by legacy sentence splitter).
    */
   public static normalizeSpacingGlitches(text: string): string {
     return text
-      // 1. Fix multi-part dates first: "20. 09. 2022" -> "20.09.2022"
-      .replace(/(\b\d{1,2})\.\s*(\d{1,2})\.\s*(\d{2,4}\b)/g, '$1.$2.$3')
-      // 2. Fix decimal numbers across space or newline: "1. 00" -> "1.00", "1.\n00" -> "1.00"
-      .replace(/(\b\d+)\.\s+(\d+\b)/g, '$1.$2')
-      // 3. Fix URL domain spacing: "innovative. msme. gov. in" -> "innovative.msme.gov.in"
       .replace(/(\b(?:https?:\/\/|www\.)[a-z0-9\-]+)\.\s+([a-z0-9\-]+)/gi, '$1.$2')
       .replace(/([a-z0-9\-]+)\.\s+(msme|gov|nic)\.\s*(in|gov\.in)\b/gi, '$1.$2.$3')
       .replace(/(https?:\/\/[^\s]+)\.\s+(gov\.in|in)\b/gi, '$1.$2')
@@ -95,9 +154,10 @@ export class TextCleaner {
    * Cleans a single page's text using repeating lines blacklist and general cleanup rules
    */
   public static cleanPageText(page: DocumentPageText, repeatingLinesBlacklist: Set<string>): string {
+    const rejoinedLines = this.rejoinSplitUrls(page.lines);
     const cleanedLines: string[] = [];
 
-    for (const line of page.lines) {
+    for (const line of rejoinedLines) {
       const trimmed = line.trim();
       if (!trimmed) continue;
 

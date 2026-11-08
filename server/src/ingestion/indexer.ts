@@ -60,13 +60,72 @@ interface QuarantineRecord {
   timestamp: string;
 }
 
-export async function runIngestion() {
+export function validateEmbeddingsForStorage(
+  docs: Array<{ embedding: number[]; [key: string]: any }>,
+  expectedDim = 768
+): void {
+  if (docs.length === 0) {
+    throw new Error('Embedding validation failed: docs array is empty');
+  }
+
+  const seenVectors = new Map<string, number>();
+
+  for (let i = 0; i < docs.length; i++) {
+    const doc = docs[i];
+    const emb = doc.embedding;
+
+    if (!emb || !Array.isArray(emb)) {
+      throw new Error(`Embedding validation failed at doc index ${i}: embedding is missing or not an array`);
+    }
+
+    if (emb.length !== expectedDim) {
+      throw new Error(
+        `Embedding validation failed at doc index ${i}: expected vector length ${expectedDim}, got ${emb.length}`
+      );
+    }
+
+    for (let j = 0; j < emb.length; j++) {
+      if (!Number.isFinite(emb[j])) {
+        throw new Error(
+          `Embedding validation failed at doc index ${i}: vector contains non-finite value (${emb[j]}) at dimension ${j}`
+        );
+      }
+    }
+
+    const hasNonZero = emb.some((v) => v !== 0);
+    if (!hasNonZero) {
+      throw new Error(
+        `Embedding validation failed at doc index ${i}: placeholder/all-zero vector detected`
+      );
+    }
+
+    const vectorKey = emb.slice(0, 10).join(',') + '::' + emb.slice(-10).join(',');
+    if (seenVectors.has(vectorKey)) {
+      const priorIdx = seenVectors.get(vectorKey)!;
+      const isIdentical =
+        docs[priorIdx].embedding.length === emb.length &&
+        docs[priorIdx].embedding.every((val, idx) => val === emb[idx]);
+      if (isIdentical) {
+        throw new Error(
+          `Embedding validation failed: chunk index ${i} has identical vector to chunk index ${priorIdx}`
+        );
+      }
+    }
+    seenVectors.set(vectorKey, i);
+  }
+}
+
+export async function runIngestion(options?: { dryRun?: boolean }) {
+  const isDryRun = options?.dryRun ?? (process.argv.includes('--dry-run') || process.argv.includes('--dump-chunks') || process.env.DRY_RUN === 'true');
   const gitCommit = getGitCommit();
   const INGEST_RUN_ID = process.env.INGEST_RUN_ID || `${Date.now()}_${gitCommit}`;
   console.log('\n======================================================================');
   console.log('  SchemeSathi — PDF Ingestion & Vector Indexing Pipeline');
   console.log(`  Chunker: DocumentChunker v${CHUNKER_VERSION} | Git Commit: ${gitCommit}`);
   console.log(`  Ingest Run ID: ${INGEST_RUN_ID}`);
+  if (isDryRun) {
+    console.log('  Mode: DRY RUN (Atlas writes and deletions disabled)');
+  }
   console.log('======================================================================\n');
 
   // Find project root directory containing data/raw_pdfs
@@ -164,15 +223,19 @@ export async function runIngestion() {
   console.log(`Using Embedding Provider: ${embeddingProvider.name} (${embeddingProvider.dimensions} dims)`);
 
   let collection: any = null;
-  try {
-    if (config.MONGODB_URI && !config.MONGODB_URI.includes('<cluster-url>')) {
-      collection = await getChunksCollection();
-    } else {
-      console.log('⚠️  MONGODB_URI in .env is a placeholder (<cluster-url>).');
-      console.log('   Chunks & embeddings will be processed and saved to data/processed/chunks_cache.json.');
+  if (!isDryRun) {
+    try {
+      if (config.MONGODB_URI && !config.MONGODB_URI.includes('<cluster-url>')) {
+        collection = await getChunksCollection();
+      } else {
+        console.log('⚠️  MONGODB_URI in .env is a placeholder (<cluster-url>).');
+        console.log('   Chunks & embeddings will be processed and saved to data/processed/chunks_cache.json.');
+      }
+    } catch (dbErr: any) {
+      console.warn(`⚠️  Could not connect to MongoDB Atlas (${dbErr.message}). Chunks will be cached to disk.`);
     }
-  } catch (dbErr: any) {
-    console.warn(`⚠️  Could not connect to MongoDB Atlas (${dbErr.message}). Chunks will be cached to disk.`);
+  } else {
+    console.log('ℹ️  [DRY RUN] MongoDB Atlas connection skipped (no remote operations).');
   }
 
   const quarantineRecords: QuarantineRecord[] = [];
@@ -373,6 +436,48 @@ export async function runIngestion() {
     const model = config.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-2';
     const dims = config.EMBEDDING_DIMENSIONS || 768;
 
+    if (isDryRun) {
+      let cachedCount = 0;
+      let needEmbeddingCount = 0;
+
+      for (const chunk of chunks) {
+        if (embeddingCache.has(chunk.text, model, dims)) {
+          cachedCount++;
+        } else {
+          needEmbeddingCount++;
+        }
+      }
+
+      console.log(`   [DRY RUN] Embeddings: ${cachedCount} cached in local hash cache, ${needEmbeddingCount} need API embedding.`);
+      console.log(`   [DRY RUN] Embedding API call skipped. Vector creation skipped.`);
+      console.log(`   [DRY RUN] Atlas writes and deletions skipped.`);
+
+      const dumpArgIndex = process.argv.indexOf('--dump-chunks');
+      if (dumpArgIndex !== -1 && process.argv[dumpArgIndex + 1]) {
+        const dumpPath = path.isAbsolute(process.argv[dumpArgIndex + 1])
+          ? process.argv[dumpArgIndex + 1]
+          : path.resolve(rootDir, process.argv[dumpArgIndex + 1]);
+        const dumpDir = path.dirname(dumpPath);
+        if (!fs.existsSync(dumpDir)) {
+          fs.mkdirSync(dumpDir, { recursive: true });
+        }
+        const exportedChunks = chunks.map((c) => ({
+          schemeName: c.metadata.schemeName,
+          sectionTitle: c.metadata.sectionTitle,
+          pageNumber: c.metadata.pageNumber,
+          text: c.text,
+          isTable: c.metadata.isTable,
+          kind: c.metadata.kind || 'scheme',
+        }));
+        fs.writeFileSync(dumpPath, JSON.stringify(exportedChunks, null, 2), 'utf8');
+        console.log(`   [DRY RUN] Dumped ${exportedChunks.length} chunks to: ${dumpPath}`);
+      }
+
+      totalChunksIndexed += chunks.length;
+      totalDocsProcessed++;
+      continue;
+    }
+
     let embeddings: number[][] = [];
     const missingIndices: number[] = [];
     const missingTexts: string[] = [];
@@ -418,6 +523,10 @@ export async function runIngestion() {
       embedding: embeddings[idx],
       createdAt: new Date(),
     }));
+
+    // Safety Gate: Validate vectors BEFORE any write or delete
+    validateEmbeddingsForStorage(dbDocs, dims);
+    console.log(`   ✅ Validated ${dbDocs.length} vectors: all length ${dims}, finite, non-zero, unique.`);
 
     if (collection) {
       // Safety Guard: Indexer deletes ONLY chunks matching this EXACT INGEST_RUN_ID (idempotency)

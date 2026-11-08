@@ -55,12 +55,41 @@ export class DocumentChunker {
     this.chunkOverlap = chunkOverlap;
   }
 
+  public formatSectionTitle(subScheme?: string, section?: string): string {
+    const rawSection = (section || 'Overview').trim();
+    if (!subScheme || !subScheme.trim()) {
+      return rawSection || 'Overview';
+    }
+
+    const cleanSub = subScheme.trim();
+    let cleanSection = rawSection;
+
+    // Strip leading subScheme prefix if already present (with chevron, dash, or colon)
+    const prefixRegex = new RegExp(`^${cleanSub.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[›\\-:]\\s*`, 'i');
+    if (prefixRegex.test(cleanSection)) {
+      cleanSection = cleanSection.replace(prefixRegex, '').trim();
+    }
+
+    // Strip subScheme if identical
+    if (cleanSection.toLowerCase() === cleanSub.toLowerCase() || !cleanSection) {
+      cleanSection = 'Overview';
+    }
+
+    // If subScheme already ends with cleanSection (e.g. "MSME Champions Scheme Overview" and "Overview"), return subScheme
+    if (new RegExp(`\\b${cleanSection}$`, 'i').test(cleanSub)) {
+      return cleanSub;
+    }
+
+    return `${cleanSub} › ${cleanSection}`;
+  }
+
   public chunkDocument(pages: PageContent[], docInfo: DocumentInfo): GeneratedChunk[] {
     const chunks: GeneratedChunk[] = [];
     let chunkGlobalIndex = 0;
     let currentSchemeHeading = docInfo.defaultSchemeName || docInfo.documentTitle;
     let currentSubHeading = '';
     let currentSectionTitle = 'Overview';
+    let currentOutlineEntry: OutlineEntry | null = null;
 
     for (const page of pages) {
       if (!page.text || page.text.trim().length === 0) continue;
@@ -71,8 +100,10 @@ export class DocumentChunker {
 
       let activeKindForPage: 'scheme' | 'directory' = 'scheme';
 
-      if (docInfo.outline && docInfo.outline.length > 0) {
-        const entry = docInfo.outline.find(
+      const hasOutline = Boolean(docInfo.outline && docInfo.outline.length > 0);
+
+      if (hasOutline) {
+        const entry = docInfo.outline!.find(
           (o) => page.pageNumber >= o.startPage && page.pageNumber <= o.endPage
         );
         if (entry) {
@@ -83,26 +114,49 @@ export class DocumentChunker {
           } else if (entry.schemeName.toLowerCase().includes('directory')) {
             activeKindForPage = 'directory';
           }
-          if (entry.subScheme) {
-            activeSubForPage = entry.subScheme;
-            activeSectionForPage = entry.subScheme;
-            currentSubHeading = entry.subScheme;
-            currentSectionTitle = entry.subScheme;
+
+          const isStartOfEntry =
+            !currentOutlineEntry ||
+            currentOutlineEntry !== entry ||
+            page.pageNumber === entry.startPage;
+
+          if (isStartOfEntry) {
+            currentOutlineEntry = entry;
+            if (entry.subScheme) {
+              activeSubForPage = entry.subScheme;
+              currentSubHeading = entry.subScheme;
+              currentSectionTitle = this.formatSectionTitle(entry.subScheme, 'Overview');
+              activeSectionForPage = currentSectionTitle;
+            } else {
+              activeSubForPage = '';
+              currentSubHeading = '';
+              currentSectionTitle = 'Overview';
+              activeSectionForPage = 'Overview';
+            }
           } else {
-            activeSubForPage = '';
-            currentSubHeading = '';
+            // Continuation page within the same outline entry
+            activeSubForPage = entry.subScheme || '';
+            currentSubHeading = entry.subScheme || '';
+            activeSectionForPage = currentSectionTitle;
           }
         }
       }
 
       // Extract sections for this page
-      const sections = this.splitPageIntoSections(page.text, activeSchemeForPage, activeSubForPage, activeSectionForPage);
+      const sections = this.splitPageIntoSections(
+        page.text,
+        activeSchemeForPage,
+        activeSubForPage,
+        activeSectionForPage,
+        hasOutline
+      );
 
       for (const section of sections) {
-        if (section.parentScheme && (!docInfo.outline || docInfo.outline.length === 0)) {
+        if (!hasOutline && section.parentScheme) {
           currentSchemeHeading = section.parentScheme;
         }
-        if (section.subHeading !== undefined) {
+
+        if (section.subHeading !== undefined && section.subHeading.trim().length > 0) {
           currentSubHeading = section.subHeading;
         }
         if (section.sectionTitle) {
@@ -168,7 +222,9 @@ export class DocumentChunker {
       }
     }
 
-    // Enforce minimum chunk length (200 characters of body text): merge short chunks into the following chunk
+    // Enforce minimum chunk length (200 characters of body text): merge short chunks into the following chunk.
+    // EXEMPTION: "How to apply" sections containing an official URL (https://, http://, or www.)
+    // are exempt from the 200-character body minimum to preserve targeted procedural retrieval without diluting table matrices.
     const mergedChunks: GeneratedChunk[] = [];
     let i = 0;
     while (i < chunks.length) {
@@ -178,7 +234,12 @@ export class DocumentChunker {
         ? curr.text.slice(headerPrefix.length).trim()
         : curr.text.trim();
 
+      const isHowToApplyWithUrl =
+        curr.metadata.sectionTitle.toLowerCase().includes('how to apply') &&
+        /(?:https?:\/\/|www\.)/i.test(body);
+
       if (
+        !isHowToApplyWithUrl &&
         body.length < 200 &&
         i + 1 < chunks.length &&
         chunks[i + 1].metadata.pageNumber === curr.metadata.pageNumber &&
@@ -214,7 +275,8 @@ export class DocumentChunker {
     pageText: string,
     initialParentScheme: string,
     initialSubHeading: string,
-    initialSectionTitle: string
+    initialSectionTitle: string,
+    hasOutline = false
   ): Array<{
     parentScheme?: string;
     subHeading?: string;
@@ -266,17 +328,19 @@ export class DocumentChunker {
         if (!isCurrentTable) {
           commitSection();
           isCurrentTable = true;
-          activeSection = 'Extent of Guarantee Coverage';
+          activeSection = this.formatSectionTitle(activeSub, 'Extent of Guarantee Coverage');
         }
         currentLines.push(line);
         continue;
       }
 
-      // 2. Check if line is a sub-heading (e.g. "1.1) 2nd Loan...", "1). MSME Sustainable...")
+      // 2. Check if line is a sub-heading (e.g. "1.1) 2nd Loan...", "1). MSME Sustainable...", "3) MSME Competitive...")
       if (this.isSubHeading(line)) {
         commitSection();
-        activeSub = line;
-        activeSection = line;
+        if (!hasOutline || !activeSub) {
+          activeSub = line;
+        }
+        activeSection = this.formatSectionTitle(activeSub, 'Overview');
         currentLines.push(line);
         continue;
       }
@@ -285,27 +349,29 @@ export class DocumentChunker {
       const funcLabel = this.detectFunctionalSection(line);
       if (funcLabel) {
         commitSection();
-        activeSection = activeSub ? `${activeSub} - ${funcLabel}` : funcLabel;
+        activeSection = this.formatSectionTitle(activeSub, funcLabel);
         currentLines.push(line);
         continue;
       }
 
-      // 4. Check if line is a top-level parent scheme heading
-      const parentCheck = this.isParentSchemeHeading(line, lines[i + 1]);
-      if (parentCheck.isMatch) {
-        commitSection();
-        activeParent = parentCheck.heading!;
-        activeSub = '';
-        activeSection = 'Overview';
+      // 4. Check if line is a top-level parent scheme heading (only when NOT outline-driven)
+      if (!hasOutline) {
+        const parentCheck = this.isParentSchemeHeading(line, lines[i + 1]);
+        if (parentCheck.isMatch) {
+          commitSection();
+          activeParent = parentCheck.heading!;
+          activeSub = '';
+          activeSection = 'Overview';
 
-        if (lines[i + 1] && this.isHeadingContinuation(lines[i + 1].trim())) {
-          activeParent = `${line} ${lines[i + 1].trim()}`;
-          currentLines.push(activeParent);
-          i++; // skip next line as consumed
-        } else {
-          currentLines.push(line);
+          if (lines[i + 1] && this.isHeadingContinuation(lines[i + 1].trim())) {
+            activeParent = `${line} ${lines[i + 1].trim()}`;
+            currentLines.push(activeParent);
+            i++; // skip next line as consumed
+          } else {
+            currentLines.push(line);
+          }
+          continue;
         }
-        continue;
       }
 
       currentLines.push(line);
@@ -332,7 +398,7 @@ export class DocumentChunker {
     if (/[,;:.]\s*$/.test(l)) return { isMatch: false };
     if (/^[•\-\*■□▪▫►–—]/.test(l)) return { isMatch: false };
     if (/^\d+\.\d+/.test(l)) return { isMatch: false }; // e.g. 1.1) is sub-heading
-    if (/^\d+\)\./.test(l)) return { isMatch: false }; // e.g. 1). is sub-heading
+    if (/^\d+\)\.?/.test(l)) return { isMatch: false }; // e.g. 1). or 3) is sub-heading
     if (/^(disability|person with disability|enterprise|trading|borrowers?)\s*(\(pwd\))?/i.test(l)) return { isMatch: false };
     if (/^(objective|eligibility|scheme applicable for|detailed information|benefits|financial assistance|how to apply|who can apply|criteria|extent of guarantee coverage):?$/i.test(l)) {
       return { isMatch: false };
@@ -369,7 +435,7 @@ export class DocumentChunker {
   public isSubHeading(line: string): boolean {
     const l = line.trim();
     if (/^\d+\.\d+\)?\s+[A-Z]/.test(l)) return true;
-    if (/^\d+\)\.\s+[A-Z]/.test(l)) return true;
+    if (/^\d+\)\.?\s+[A-Z]/.test(l)) return true;
     return false;
   }
 
@@ -475,7 +541,9 @@ export class DocumentChunker {
       if (unit.length <= this.chunkSize) {
         refinedUnits.push(unit);
       } else {
-        const sentences = unit.match(/[^.!?।]+[.!?।]+|\S+$/g) || [unit];
+        // Split on sentence terminators (. ! ? ।) followed by whitespace, NOT inside abbreviations (Rs., No., Dr., i.e.), decimals, dates or URLs
+        const sentenceBoundaryRegex = /(?<!\b(?:Rs|No|Dr|Mr|Ms|Prof|viz)\.)(?<!\bi\.e\.)(?<!\be\.g\.)(?<=[.!?।])\s+(?=[A-Z0-9\u0900-\u097F•\-])/g;
+        const sentences = unit.split(sentenceBoundaryRegex);
         for (const s of sentences) {
           const st = s.trim();
           if (st) refinedUnits.push(st);
