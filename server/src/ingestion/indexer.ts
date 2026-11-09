@@ -115,7 +115,11 @@ export function validateEmbeddingsForStorage(
   }
 }
 
-export async function runIngestion(options?: { dryRun?: boolean }) {
+export async function runIngestion(options?: {
+  dryRun?: boolean;
+  getCollectionFn?: () => Promise<any>;
+  embeddingProvider?: any;
+}) {
   const isDryRun = options?.dryRun ?? (process.argv.includes('--dry-run') || process.argv.includes('--dump-chunks') || process.env.DRY_RUN === 'true');
   const gitCommit = getGitCommit();
   const INGEST_RUN_ID = process.env.INGEST_RUN_ID || `${Date.now()}_${gitCommit}`;
@@ -219,20 +223,23 @@ export async function runIngestion(options?: { dryRun?: boolean }) {
     pdfjs = await import('pdfjs-dist');
   }
 
-  const embeddingProvider = getEmbeddingProvider();
+  const embeddingProvider = options?.embeddingProvider || getEmbeddingProvider();
   console.log(`Using Embedding Provider: ${embeddingProvider.name} (${embeddingProvider.dimensions} dims)`);
 
   let collection: any = null;
+  let atlasConnectionError: Error | null = null;
   if (!isDryRun) {
     try {
-      if (config.MONGODB_URI && !config.MONGODB_URI.includes('<cluster-url>')) {
+      if (options?.getCollectionFn) {
+        collection = await options.getCollectionFn();
+      } else if (config.MONGODB_URI && !config.MONGODB_URI.includes('<cluster-url>')) {
         collection = await getChunksCollection();
       } else {
-        console.log('⚠️  MONGODB_URI in .env is a placeholder (<cluster-url>).');
-        console.log('   Chunks & embeddings will be processed and saved to data/processed/chunks_cache.json.');
+        atlasConnectionError = new Error('MONGODB_URI in .env is missing or placeholder (<cluster-url>).');
       }
     } catch (dbErr: any) {
-      console.warn(`⚠️  Could not connect to MongoDB Atlas (${dbErr.message}). Chunks will be cached to disk.`);
+      atlasConnectionError = dbErr;
+      console.warn(`⚠️  Could not connect to MongoDB Atlas (${dbErr.message}).`);
     }
   } else {
     console.log('ℹ️  [DRY RUN] MongoDB Atlas connection skipped (no remote operations).');
@@ -244,7 +251,7 @@ export async function runIngestion(options?: { dryRun?: boolean }) {
   let totalDocsProcessed = 0;
   let totalPagesProcessed = 0;
   let totalPagesQuarantined = 0;
-  let totalChunksIndexed = 0;
+  let chunksWrittenToAtlas = 0;
 
   for (const entry of eligibleEntries) {
     const filePath = path.resolve(rawPdfsDir, entry.file);
@@ -473,7 +480,6 @@ export async function runIngestion(options?: { dryRun?: boolean }) {
         console.log(`   [DRY RUN] Dumped ${exportedChunks.length} chunks to: ${dumpPath}`);
       }
 
-      totalChunksIndexed += chunks.length;
       totalDocsProcessed++;
       continue;
     }
@@ -528,33 +534,41 @@ export async function runIngestion(options?: { dryRun?: boolean }) {
     validateEmbeddingsForStorage(dbDocs, dims);
     console.log(`   ✅ Validated ${dbDocs.length} vectors: all length ${dims}, finite, non-zero, unique.`);
 
-    if (collection) {
-      // Safety Guard: Indexer deletes ONLY chunks matching this EXACT INGEST_RUN_ID (idempotency)
-      // and NEVER prunes other runs or legacy runs.
-      const deleteFilter = {
-        sourceFile: entry.file,
-        ingestRunId: INGEST_RUN_ID,
-      };
-      const existingSameRun = await collection.countDocuments(deleteFilter);
-      if (existingSameRun > 0) {
-        const deleteResult = await collection.deleteMany(deleteFilter);
-        console.log(
-          `   🔄 Idempotent re-run: Deleted ${deleteResult.deletedCount} existing chunks matching ingestRunId "${INGEST_RUN_ID}".`
-        );
+    if (!isDryRun) {
+      if (!collection || atlasConnectionError) {
+        const errorDetail = atlasConnectionError ? atlasConnectionError.message : 'No Atlas collection available';
+        console.error(`\n❌ NOT STORED IN ATLAS: Failed Atlas connection (${errorDetail})`);
+        process.exitCode = 1;
+        throw new Error(`NOT STORED IN ATLAS: Failed Atlas connection (${errorDetail})`);
       }
 
-      // Insert the new chunks with INGEST_RUN_ID
-      const insertResult = await collection.insertMany(dbDocs);
-      console.log(`   ✅ Stored ${insertResult.insertedCount} chunks with ingestRunId "${INGEST_RUN_ID}" in MongoDB Atlas.`);
+      try {
+        // Safety Guard: Indexer deletes ONLY chunks matching this EXACT INGEST_RUN_ID (idempotency)
+        // and NEVER prunes other runs or legacy runs.
+        const deleteFilter = {
+          sourceFile: entry.file,
+          ingestRunId: INGEST_RUN_ID,
+        };
+        const existingSameRun = await collection.countDocuments(deleteFilter);
+        if (existingSameRun > 0) {
+          const deleteResult = await collection.deleteMany(deleteFilter);
+          console.log(
+            `   🔄 Idempotent re-run: Deleted ${deleteResult.deletedCount} existing chunks matching ingestRunId "${INGEST_RUN_ID}".`
+          );
+        }
 
-      const currentDocCount = await collection.countDocuments();
-      console.log(`   📊 Total collection count in MongoDB: ${currentDocCount}`);
-      totalChunksIndexed += insertResult.insertedCount;
-    } else {
-      const cacheFile = path.resolve(processedDir, `chunks_${path.basename(entry.file, '.pdf')}.json`);
-      fs.writeFileSync(cacheFile, JSON.stringify(dbDocs, null, 2), 'utf8');
-      console.log(`   ✅ Saved ${dbDocs.length} chunks with embeddings to ${cacheFile}.`);
-      totalChunksIndexed += dbDocs.length;
+        // Insert the new chunks with INGEST_RUN_ID
+        const insertResult = await collection.insertMany(dbDocs);
+        console.log(`   ✅ Stored ${insertResult.insertedCount} chunks with ingestRunId "${INGEST_RUN_ID}" in MongoDB Atlas.`);
+
+        const currentDocCount = await collection.countDocuments();
+        console.log(`   📊 Total collection count in MongoDB: ${currentDocCount}`);
+        chunksWrittenToAtlas += insertResult.insertedCount;
+      } catch (writeErr: any) {
+        console.error(`\n❌ NOT STORED IN ATLAS: Write failed (${writeErr.message})`);
+        process.exitCode = 1;
+        throw new Error(`NOT STORED IN ATLAS: Write failed (${writeErr.message})`);
+      }
     }
     totalDocsProcessed++;
   }
@@ -568,7 +582,7 @@ export async function runIngestion(options?: { dryRun?: boolean }) {
   console.log(`   Documents Processed:   ${totalDocsProcessed}`);
   console.log(`   Total Pages Analyzed:  ${totalPagesProcessed}`);
   console.log(`   Pages Quarantined:     ${totalPagesQuarantined}`);
-  console.log(`   Total Chunks Indexed:  ${totalChunksIndexed}`);
+  console.log(`   Chunks written to Atlas: ${chunksWrittenToAtlas}`);
   console.log('======================================================================\n');
 
   if (collection) {

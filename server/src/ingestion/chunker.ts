@@ -57,11 +57,15 @@ export class DocumentChunker {
 
   public formatSectionTitle(subScheme?: string, section?: string): string {
     const rawSection = (section || 'Overview').trim();
-    if (!subScheme || !subScheme.trim()) {
+    if (!subScheme || !subScheme.trim() || subScheme.trim().toLowerCase() === 'overview') {
       return rawSection || 'Overview';
     }
 
-    const cleanSub = subScheme.trim();
+    let cleanSub = subScheme.trim();
+    if (cleanSub.toLowerCase() === 'msme champions scheme overview') {
+      return rawSection || 'Overview';
+    }
+
     let cleanSection = rawSection;
 
     // Strip leading subScheme prefix if already present (with chevron, dash, or colon)
@@ -122,7 +126,12 @@ export class DocumentChunker {
 
           if (isStartOfEntry) {
             currentOutlineEntry = entry;
-            if (entry.subScheme) {
+            const isOverviewSub =
+              entry.subScheme &&
+              (entry.subScheme.toLowerCase() === 'overview' ||
+                entry.subScheme.toLowerCase() === 'msme champions scheme overview');
+
+            if (entry.subScheme && !isOverviewSub) {
               activeSubForPage = entry.subScheme;
               currentSubHeading = entry.subScheme;
               currentSectionTitle = this.formatSectionTitle(entry.subScheme, 'Overview');
@@ -135,8 +144,12 @@ export class DocumentChunker {
             }
           } else {
             // Continuation page within the same outline entry
-            activeSubForPage = entry.subScheme || '';
-            currentSubHeading = entry.subScheme || '';
+            const isOverviewSub =
+              entry.subScheme &&
+              (entry.subScheme.toLowerCase() === 'overview' ||
+                entry.subScheme.toLowerCase() === 'msme champions scheme overview');
+            activeSubForPage = entry.subScheme && !isOverviewSub ? entry.subScheme : '';
+            currentSubHeading = activeSubForPage;
             activeSectionForPage = currentSectionTitle;
           }
         }
@@ -334,12 +347,10 @@ export class DocumentChunker {
         continue;
       }
 
-      // 2. Check if line is a sub-heading (e.g. "1.1) 2nd Loan...", "1). MSME Sustainable...", "3) MSME Competitive...")
-      if (this.isSubHeading(line)) {
+      // 2. Check if line is a sub-heading (only when NOT outline-driven)
+      if (!hasOutline && this.isSubHeading(line)) {
         commitSection();
-        if (!hasOutline || !activeSub) {
-          activeSub = line;
-        }
+        activeSub = line;
         activeSection = this.formatSectionTitle(activeSub, 'Overview');
         currentLines.push(line);
         continue;
